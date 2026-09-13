@@ -20,7 +20,71 @@ analytics. This is an educational library, not a production pricing platform.
    from continuously compounded zero rates, parallel and generic piecewise-linear
    shocks, steepeners, flatteners, and key-rate DV01.
 
-## Implemented bond API and conventions
+## Windows PowerShell setup
+
+Use native PowerShell from the repository root (the directory containing
+`pyproject.toml`, `src`, and `examples`). Python 3.12 or later is required.
+
+If `.venv` does not exist, create it once. This example selects an installed
+Python 3.12 using the Windows `py` launcher; select a later installed version
+instead if appropriate:
+
+```powershell
+py -3.12 -m venv .venv
+```
+
+Install the package in editable mode with the test dependency, then check the
+interpreter version and package import. These commands use the virtual
+environment directly; activation is unnecessary:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe --version
+.\.venv\Scripts\python.exe -c "import fixed_income; print(fixed_income.__file__)"
+```
+
+Dependency installation may require network access; application execution does
+not. Dependencies are declared in `pyproject.toml`, but versions are not locked,
+so identical environments across installations are not guaranteed.
+
+## CLI examples
+
+Run these commands from the repository root after installation:
+
+```powershell
+.\.venv\Scripts\python.exe -m fixed_income.cli --help
+.\.venv\Scripts\python.exe -m fixed_income.cli bond
+.\.venv\Scripts\python.exe -m fixed_income.cli curve
+.\.venv\Scripts\python.exe -m fixed_income.cli risk
+.\.venv\Scripts\python.exe -m fixed_income.cli demo
+```
+
+Each subcommand runs a fixed illustrative example; there are no CLI options for
+custom bond parameters or input/output paths. Use the Python API for custom
+inputs. Running without a subcommand shows help.
+
+| Subcommand | Result |
+| --- | --- |
+| `bond` | Prints the invented bond's dates, face value, coupon, YTM, frequency, accrued interest, dirty/clean price, durations, convexity, and full-repricing DV01. |
+| `curve` | Fits NSS to the invented CSV; prints all six parameters, optimizer status, and RMSE in decimal rates and bp; saves `outputs/yield_curve.png`. |
+| `risk` | Fits the same CSV and explicitly interprets its rates as continuous zeros; prints base price, parallel +/-25 bp and shape scenarios, KRDV01s, parallel DV01, and reconciliation. |
+| `demo` | Runs the bond, curve, and risk examples in order, reusing the fitted curve. |
+
+The `curve`, `risk`, and `demo` commands resolve
+`examples/illustrative_curve.csv` from the **current working directory**. They
+require the repository's example data; installing the package does not make
+these paths independent of the working directory. The CSV contains invented
+rates, never current/live market data, and fitting it does not bootstrap a zero
+curve. The risk example uses settlement 2025-04-15 and maturity 2055-01-15,
+approximately 30 years apart.
+
+The `curve` and `demo` commands create the gitignored `outputs` directory and
+write the same `outputs/yield_curve.png` path. Rerunning either command replaces
+that plot. The bond output labels rates in both percentages and decimals and
+labels currency amounts, years, and years squared; curve and risk output state
+their rate interpretation and units.
+
+## Bond API and conventions
 
 Rates are decimals internally: 0.05 = 5%; 0.0001 = 1 basis point (bp).
 Coupon rate is annual. YTM is a **nominal annual decimal yield compounded at
@@ -34,10 +98,12 @@ must be nonnegative. Numerical inputs must be finite. Accepted real scalars
 (including NumPy scalars) are converted to Python floats before arithmetic,
 so lower-precision input dtypes do not reduce cash-flow or 1 bp bump precision.
 This preserves the supplied values; it cannot restore precision already lost
-when those values were created. Zero coupons and negative
-YTM are supported, provided 1 + YTM/frequency > 0. DV01 and the combined analytics
-also require valid yields at both +/-1 bp shifts. Prices outside finite positive
-floating-point range raise ValueError.
+when those values were created. Zero coupons and negative YTM are supported,
+provided `1 + YTM/frequency > 0`. DV01 and the combined analytics also require
+valid yields at both +/-1 bp shifts. Yields that produce a nonfinite or
+nonpositive dirty price, or overflow during discounting, raise `ValueError`.
+Clean price is calculated by subtracting accrued interest; it has no separate
+positivity check.
 
 ```python
 from datetime import date
@@ -68,14 +134,15 @@ Dates are generated backward from maturity using dateutil.relativedelta at
 integer multiples of 12 months (annual) or 6 months (semiannual). Every date is
 anchored to maturity, avoiding cumulative day-of-month drift. A nonexistent day
 clips to the last day of that month; there is no additional end-of-month rule.
-For example, August 31 anchors produce February 28/29 and August 31 coupons.
+For example, semiannual August 31 anchors produce February 28/29 and August 31
+coupons.
 
 coupon_schedule() returns an ascending tuple of payment dates strictly after
 settlement, including maturity. The previous coupon is on or before settlement;
 the next coupon is strictly after settlement. **Settlement on a coupon date
 excludes that day's payment and starts a new period with zero accrued interest.**
 
-For periodic coupon C = face_value * coupon_rate / m, with m = frequency:
+For periodic coupon `C = face_value * coupon_rate / m`, with `m = frequency`:
 
 ```text
 alpha = elapsed calendar days from previous coupon to settlement
@@ -88,8 +155,8 @@ market day-count implementation.
 
 ### Prices and durations
 
-For i = 1 at the next coupon, define w = 1 - alpha and q_i = w + i - 1.
-CF_i is C, with principal added at maturity. For annual decimal YTM y:
+For `i = 1` at the next coupon, define `w = 1 - alpha` and `q_i = w + i - 1`.
+`CF_i` is `C`, with principal added at maturity. For annual decimal YTM `y`:
 
 ```text
 PV_i = CF_i * (1 + y/m)^(-q_i)
@@ -103,7 +170,7 @@ modified duration = Macaulay duration / (1 + y/m)
 Prices and accrued interest are currency amounts for the supplied face value;
 they are not automatically normalized to 100. Both durations are in years.
 Macaulay duration is the PV-weighted payment time. Modified duration equals
--(dP/dy)/P for dirty price P and annual decimal YTM y. Payment times use fractional
+`-(dP/dy)/P` for dirty price `P` and annual decimal YTM `y`. Payment times use fractional
 coupon periods divided by frequency, not actual days divided by 365.
 
 ### Convexity and DV01
@@ -118,7 +185,7 @@ convexity = (d2P/dy2) / dirty_price
 
 Convexity itself has no factor of 1/2. That factor enters the second-order
 approximation: delta_P / P is approximately
--modified_duration * delta_y + 0.5 * convexity * delta_y^2.
+`-modified_duration * delta_y + 0.5 * convexity * delta_y^2`.
 
 Public DV01 uses full central repricing of dirty price, with **1 bp = 0.0001**:
 
@@ -131,7 +198,7 @@ DV01 is a currency amount for a one-basis-point move on the supplied face value
 and is positive for a conventional positive-duration bond. The approximation is
 documented for comparison; the public method uses the full repricing formula.
 
-### Version 1 limitations
+### Bond limitations
 
 Only option-free bonds with regular maturity-based annual or semiannual coupons
 are supported. There is no issue date, irregular first/final coupon, holiday
@@ -140,7 +207,7 @@ handling. Calculations use floating-point arithmetic and deterministic
 illustrative inputs. There is no yield solver. Explicit zero-curve valuation is
 provided separately by risk.curve_price and does not change the YTM bond API.
 
-## Implemented NSS API and calibration
+## NSS API and calibration
 
 NSSCurve is an immutable dataclass with beta0, beta1, beta2, beta3 (decimal
 rates) and tau1, tau2 (strictly positive years). All parameters must be finite.
@@ -149,7 +216,7 @@ maturities in years and returns decimal rates, preserving array shape. A scalar
 or zero-dimensional array returns a Python float. **t=0 is not supported.**
 The model retains the caller's rate convention and does no compounding conversion.
 
-For x1 = t/tau1 and x2 = t/tau2:
+For `x1 = t/tau1` and `x2 = t/tau2`:
 
 ```text
 L1(x) = (1 - exp(-x)) / x
@@ -187,18 +254,22 @@ Each start initializes the four betas with linear least squares at those taus.
 Betas are unbounded, allowing varied curve shapes; taus are bounded to
 [0.01, 100] years. Optimization residuals are scaled to basis points for numerical
 conditioning, with Jacobian-based parameter scaling, tolerances of 1e-10 and
-at most 3,000 function evaluations per start. These choices are deterministic;
-there is no random initialization.
+`max_nfev=3000` per start. SciPy's evaluation count excludes the additional
+residual calls used to approximate the numerical Jacobian, so 3,000 is not a
+limit on all residual calls. These choices are deterministic; there is no random
+initialization.
 
 Only successful candidates with finite parameters, valid bounds and finite
 residual sum of squares are eligible. The lowest unweighted residual sum of
 squares wins; ties retain the earlier start. If none succeeds, fit_nss raises
 RuntimeError with failure details. Invalid inputs raise ValueError.
 
-NSSFitResult contains curve, maturities, observed_rates, fitted_rates, residuals,
-rmse, rmse_bps, success, status, message, nfev, starts_attempted and
-starts_succeeded. Arrays are independent read-only copies in original observation
-order. Optimizer metadata and nfev describe the selected run, not total work.
+`NSSFitResult` contains `curve`, `maturities`, `observed_rates`, `fitted_rates`,
+`residuals`, `rmse`, `success`, `status`, `message`, `nfev`, `starts_attempted`, and
+`starts_succeeded`; `rmse_bps` is a computed property. Arrays returned by `fit_nss`
+are independent read-only copies in original observation order. Optimizer
+metadata and `nfev` describe the selected run, not total work across starts;
+`nfev` also excludes the numerical-Jacobian residual calls described above.
 
 ```text
 residual = observed_rate - fitted_rate        # decimal rate
@@ -243,7 +314,7 @@ the caller to interpret supplied rates explicitly as **continuously compounded
 annual zero rates** in decimal units, with DF(t) = exp(-r(t) * t) for t in years.
 NSS fitting alone does not establish that interpretation.
 
-## Implemented zero-curve valuation and risk API
+## Zero-curve valuation and risk API
 
 ZeroCurve is a minimal protocol with yield_rate(maturity_years), evaluated at
 scalar positive years and returning a finite scalar continuous annual decimal
@@ -282,9 +353,10 @@ the respective tails. A single anchor defines a constant shock.
 
 **1 bp = 0.0001 decimal rate.** Factories convert bp to decimal changes exactly
 once at construction. Returned shock(t) callables accept positive years and
-return decimals. ShockedCurve(base_curve, shock) adds that decimal change to
-the base rate without modifying the base curve. Its shock argument takes
-decimals, not bp; use the factories to convert bp inputs.
+return decimals. `ShockedCurve(base_curve, shock)` adds that decimal change to
+the base rate without modifying the base curve. Its `shock` argument is a
+callable: `shock(t)` takes a positive maturity in years and returns a decimal
+rate change. Use the factories above to construct that callable from bp inputs.
 
 The illustrative defaults are:
 
@@ -356,9 +428,9 @@ unexposed key can have zero sensitivity.
 Partition of unity makes the linear sensitivities additive. Independent central
 full repricing is nonlinear, so the sum of KRDV01s only approximately matches
 parallel DV01. For positive PVs and h=0.0001, each cash-flow contribution is
-PV*sinh(h*t*weight); linear terms cancel in the reconciliation. The discrepancy
+`PV*sinh(h*t*weight)`; linear terms cancel in the reconciliation. The discrepancy
 starts at order h^3. Tests bound parallel_DV01 - sum KRDV01 by
-sum PV*(h*t)^3*cosh(h*t)/6 plus floating-point rounding, and also check the leading
+`sum PV*(h*t)^3*cosh(h*t)/6` plus floating-point rounding, and also check the leading
 cubic term with a fifth-order remainder bound.
 
 ### Risk modelling limitations
@@ -379,49 +451,23 @@ machine learning, forecasting, trade execution, brokers, databases, REST APIs,
 web applications, dashboards, notebooks, or live market-data downloads.
 This is not a production pricing or trading platform.
 
-## Windows PowerShell setup
+## Tests
 
-Run from the repository root. Create the environment only if needed; all commands
-invoke its Python directly and do not depend on activation:
+Run the complete deterministic suite from the repository root:
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe -c "import fixed_income; print(fixed_income.__file__)"
-.\.venv\Scripts\python.exe -m fixed_income.cli --help
-.\.venv\Scripts\python.exe -m fixed_income.cli bond
-.\.venv\Scripts\python.exe -m fixed_income.cli curve
-.\.venv\Scripts\python.exe -m fixed_income.cli risk
-.\.venv\Scripts\python.exe -m fixed_income.cli demo
-.\.venv\Scripts\python.exe -m pytest tests\test_risk.py -q
-.\.venv\Scripts\python.exe -m pytest tests\test_curves.py -q
-.\.venv\Scripts\python.exe -m pytest tests\test_bonds.py -q
 .\.venv\Scripts\python.exe -m pytest -q
-git diff --check
 ```
 
-Dependency installation may require network access; application execution does
-not. Dependencies are declared in pyproject.toml, but versions are not locked,
-so identical environments across installations are not guaranteed.
+For a focused check, run the relevant module's tests. Check whitespace before
+committing documentation or code changes:
 
-## CLI and tests
-
-The bond subcommand prints a clearly labelled invented example with settlement,
-maturity, face value, annual coupon rate, annual YTM, payment frequency, accrued
-interest, dirty/clean price, both durations, convexity, and full-repricing DV01.
-Rates display both percentages and decimal values; price amounts, years, years
-squared, and basis points are explicitly labelled. Running without a subcommand
-shows help. The curve subcommand reads examples/illustrative_curve.csv relative
-to the repository root, fits NSS and prints all six parameters, optimizer status,
-and RMSE in both decimal rate units and basis points. It saves
-outputs/yield_curve.png, creating the gitignored outputs directory if needed.
-The CSV is invented illustrative data, never current/live market data.
-The risk command creates an invented 30-year bond and fits that CSV, explicitly
-interpreting the fitted rates as continuous zeros for an educational example.
-It prints base price, parallel +/-25 bp and default shape scenarios, four
-KRDV01s, parallel DV01, their sum and reconciliation difference.
-The demo command runs bond analytics, NSS fitting and curve risk in that order,
-reusing the fitted curve within the demo.
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_bonds.py -q
+.\.venv\Scripts\python.exe -m pytest tests\test_curves.py -q
+.\.venv\Scripts\python.exe -m pytest tests\test_risk.py -q
+git diff --check
+```
 
 Deterministic bond tests check par/premium/discount pricing, price monotonicity,
 accrual and coupon boundaries, leap-year/month-end schedules, single fractional
