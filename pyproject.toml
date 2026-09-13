@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fixed-income-analytics-engine"
+version = "0.1.0"
+description = "Educational fixed-income analytics scaffold"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "python-dateutil",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+fixed-income = "fixed_income.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
