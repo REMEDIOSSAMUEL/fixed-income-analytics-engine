@@ -2,15 +2,16 @@
 
 A small Python 3.12+ educational/research project focused on mathematical
 transparency, explicit financial conventions, and deterministic offline execution.
-**Phase 1 implements fixed-rate bond analytics.** Nelson-Siegel-Svensson (NSS)
-modelling and interest-rate/curve-risk analytics remain unimplemented placeholders.
+**Phases 1 and 2 implement fixed-rate bond analytics and Nelson-Siegel-Svensson
+(NSS) yield-curve modelling.** Interest-rate/curve-risk analytics remain an
+unimplemented placeholder.
 
 ## Exactly three capabilities
 
 1. **Implemented - fixed-rate bond analytics:** regular coupon schedules, accrued
    interest, dirty and clean prices from YTM, Macaulay and modified duration,
    analytical convexity, and full-repricing DV01.
-2. **Not yet implemented - Nelson-Siegel-Svensson curves:** planned standard
+2. **Implemented - Nelson-Siegel-Svensson curves:** standard
    six-parameter NSS (beta0, beta1, beta2, beta3, tau1, tau2), stable factor
    loadings, scalar/vector evaluation, deterministic nonlinear and multi-start
    calibration using scipy.optimize.least_squares, residuals, RMSE in decimal
@@ -134,14 +135,109 @@ adjustment, business-day convention, special end-of-month rule, or ex-coupon
 handling. Calculations use floating-point arithmetic and deterministic
 illustrative inputs. There is no yield solver or explicit zero-curve valuation.
 
-## Future curve conventions (not implemented)
+## Implemented NSS API and calibration
 
-YTM-based pricing and discounting individual cash flows from an explicit zero
-curve are distinct calculations. Planned curve valuation uses
-DF(t) = exp(-r(t) * t), where t is time in years and r(t) is a continuously
-compounded annual zero rate. The fitting API will accept generic maturity/rate
-observations: Treasury CMT/par-style yields are **not automatically zero-coupon
-spot rates** and cannot simply be treated as such for discounting.
+NSSCurve is an immutable dataclass with beta0, beta1, beta2, beta3 (decimal
+rates) and tau1, tau2 (strictly positive years). All parameters must be finite.
+yield_rate(maturity_years) accepts a scalar or NumPy array of finite positive
+maturities in years and returns decimal rates, preserving array shape. A scalar
+or zero-dimensional array returns a Python float. **t=0 is not supported.**
+The model retains the caller's rate convention and does no compounding conversion.
+
+For x1 = t/tau1 and x2 = t/tau2:
+
+```text
+L1(x) = (1 - exp(-x)) / x
+L2(x) = L1(x) - exp(-x)
+y(t) = beta0 + beta1*L1(x1) + beta2*L2(x1) + beta3*L2(x2)
+```
+
+The loadings use numpy.expm1 and, below x=0.001, Taylor expansions through
+x^5 with O(x^6) remainder. Expanding L2 separately avoids cancellation between
+L1 and exp(-x) at extremely short positive maturities.
+
+```python
+import numpy as np
+from pathlib import Path
+from fixed_income import NSSCurve, NSSFitResult, fit_nss, plot_nss
+
+maturities = np.array([0.25, 0.5, 1, 2, 3, 5, 7, 10, 20, 30])
+known = NSSCurve(0.04, -0.025, 0.03, -0.012, 1.4, 6.5)
+observed_rates = known.yield_rate(maturities)  # invented decimal-rate observations
+fit: NSSFitResult = fit_nss(maturities, observed_rates)
+print(fit.curve.yield_rate(4.0))
+print(fit.rmse_bps)
+figure = plot_nss(maturities, observed_rates, fit.curve, Path("outputs/synthetic.png"))
+```
+
+fit_nss requires 1D arrays of equal length, finite rates, positive maturities,
+and at least six distinct maturities. Input order is retained; repeated tenors
+beyond this minimum are allowed and each observation has equal weight.
+Negative rates are permitted.
+
+Calibration uses scipy.optimize.least_squares to jointly fit all six parameters
+from six fixed (tau1, tau2) starting pairs in years:
+(0.5, 2), (1, 5), (2, 10), (5, 1), (10, 3), and (3, 15).
+Each start initializes the four betas with linear least squares at those taus.
+Betas are unbounded, allowing varied curve shapes; taus are bounded to
+[0.01, 100] years. Optimization residuals are scaled to basis points for numerical
+conditioning, with Jacobian-based parameter scaling, tolerances of 1e-10 and
+at most 3,000 function evaluations per start. These choices are deterministic;
+there is no random initialization.
+
+Only successful candidates with finite parameters, valid bounds and finite
+residual sum of squares are eligible. The lowest unweighted residual sum of
+squares wins; ties retain the earlier start. If none succeeds, fit_nss raises
+RuntimeError with failure details. Invalid inputs raise ValueError.
+
+NSSFitResult contains curve, maturities, observed_rates, fitted_rates, residuals,
+rmse, rmse_bps, success, status, message, nfev, starts_attempted and
+starts_succeeded. Arrays are independent read-only copies in original observation
+order. Optimizer metadata and nfev describe the selected run, not total work.
+
+```text
+residual = observed_rate - fitted_rate        # decimal rate
+RMSE = sqrt(mean(residual^2))                # decimal rate
+RMSE_bps = RMSE * 10_000                     # basis points
+```
+
+plot_nss accepts the observations, an NSSCurve and an optional pathlib.Path.
+It returns a matplotlib Figure and optionally saves it, creating parent
+directories. Observed points and a smooth fit over the observed maturity range
+are shown against maturity in years, with rates converted to percentages for
+the labelled plot axis. It does not open an interactive window.
+
+### Calibration limitations
+
+NSS is nonlinear and can have local minima and weakly identified parameters.
+A modest deterministic multi-start search does not guarantee a global optimum
+or unique parameters. Six distinct observations are only a minimum input check,
+not a guarantee of identification; broad tenor coverage and more observations
+are preferable. Different parameter sets may describe almost identical curves.
+Tau bounds can constrain unusual curves. There are no shape, positivity or
+arbitrage constraints, no observation weights, and no extrapolation guarantees.
+Reproducibility assumes the same numerical environment; dependencies are not locked.
+
+## Curve conventions and future risk module
+
+The fitting API accepts **generic maturity/rate observations** and does not
+assign a financial interpretation or compounding convention to them.
+**Par/CMT-style yields** describe coupon-bearing/par-style instruments;
+**zero-coupon spot rates** describe discounting to a single maturity under
+a specified compounding convention. These are distinct inputs.
+
+**Fitting an NSS function to Treasury CMT/par-style yields does NOT
+automatically convert them into a bootstrapped zero curve.**
+Treating an NSS fit to par-style yields as though it were a zero curve is only
+an educational approximation unless a proper bootstrap has been performed.
+This project does not currently implement bootstrapping.
+
+YTM-based bond pricing and discounting individual cash flows from an explicit
+zero curve are distinct calculations. The later curve-risk module will require
+the caller to interpret supplied rates explicitly as **continuously compounded
+annual zero rates** in decimal units, with DF(t) = exp(-r(t) * t) for t in years.
+NSS fitting alone does not establish that interpretation. Curve-risk calculations
+are not implemented in this phase.
 
 Planned default key-rate tenors are 2Y, 5Y, 10Y, and 30Y. For sorted keys, each
 basis will equal one at its own key and zero at the others, with linear
@@ -168,6 +264,8 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -c "import fixed_income; print(fixed_income.__file__)"
 .\.venv\Scripts\python.exe -m fixed_income.cli --help
 .\.venv\Scripts\python.exe -m fixed_income.cli bond
+.\.venv\Scripts\python.exe -m fixed_income.cli curve
+.\.venv\Scripts\python.exe -m pytest tests\test_curves.py -q
 .\.venv\Scripts\python.exe -m pytest tests\test_bonds.py -q
 .\.venv\Scripts\python.exe -m pytest -q
 git diff --check
@@ -184,7 +282,12 @@ maturity, face value, annual coupon rate, annual YTM, payment frequency, accrued
 interest, dirty/clean price, both durations, convexity, and full-repricing DV01.
 Rates display both percentages and decimal values; price amounts, years, years
 squared, and basis points are explicitly labelled. Running without a subcommand
-shows help. NSS and curve-risk commands are not implemented.
+shows help. The curve subcommand reads examples/illustrative_curve.csv relative
+to the repository root, fits NSS and prints all six parameters, optimizer status,
+and RMSE in both decimal rate units and basis points. It saves
+outputs/yield_curve.png, creating the gitignored outputs directory if needed.
+The CSV is invented illustrative data, never current/live market data.
+Curve-risk commands are not implemented.
 
 Deterministic bond tests check par/premium/discount pricing, price monotonicity,
 accrual and coupon boundaries, leap-year/month-end schedules, single fractional
@@ -192,8 +295,12 @@ periods, zero coupons, annual/semiannual frequency, negative and zero yields,
 face-value scaling, input validation, combined analytics, and the CLI.
 Independent numerical first/second derivatives check duration and convexity;
 direct repricing checks DV01. Derivative steps and tolerances are documented
-in the tests. Curve and risk test modules remain explicitly skipped placeholders;
-those skips establish no numerical correctness.
+in the tests. Deterministic curve tests cover scalar/vector formulas and shapes,
+short-maturity accuracy against high-precision reference calculations, input
+validation, synthetic curve-fit quality, RMSE units, reproducibility, result
+metadata, candidate selection and failure handling, plotting and the curve CLI.
+Only the risk test module remains an explicitly skipped placeholder; that skip
+establishes no numerical correctness.
 
 ## Repository layout
 
