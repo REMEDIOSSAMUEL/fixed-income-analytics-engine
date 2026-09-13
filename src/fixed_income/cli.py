@@ -1,20 +1,30 @@
-"""Offline illustrative bond and NSS curve command line interface."""
+"""Offline illustrative bond, NSS curve and continuous-zero risk CLI."""
 
 import argparse
 from datetime import date
+from math import fsum
 from pathlib import Path
 
 import numpy as np
 
 from fixed_income.bonds import FixedRateBond
-from fixed_income.curves import fit_nss, plot_nss
+from fixed_income.curves import NSSFitResult, fit_nss, plot_nss
+from fixed_income.risk import (
+    ZeroCurve, curve_price, evaluate_scenario, flattener_shock, key_rate_dv01,
+    parallel_dv01, parallel_shock, steepener_shock,
+)
 
 
-def _curve_example() -> None:
+def _load_curve() -> NSSFitResult:
     """Fit the invented repository CSV (decimal rates, maturities in years)."""
     source = Path("examples") / "illustrative_curve.csv"
     data = np.genfromtxt(source, delimiter=",", names=True)
-    result = fit_nss(data["maturity_years"], data["rate"])
+    return fit_nss(data["maturity_years"], data["rate"])
+
+
+def _curve_example() -> NSSFitResult:
+    """Print the illustrative fit and save its plot."""
+    result = _load_curve()
     print("Illustrative NSS curve example (invented; no market data)")
     print("Generic decimal rates; no implied compounding convention.")
     print("This is not a bootstrapped zero curve.")
@@ -31,24 +41,44 @@ def _curve_example() -> None:
     destination = Path("outputs") / "yield_curve.png"
     plot_nss(result.maturities, result.observed_rates, result.curve, destination)
     print(f"Plot: {destination}")
+    return result
 
 
-def main() -> None:
-    """Print help or deterministic illustrative bond/curve analytics."""
-    parser = argparse.ArgumentParser(
-        description="Educational fixed-income analytics with decimal-rate inputs."
-    )
-    commands = parser.add_subparsers(dest="command")
-    commands.add_parser("bond", help="Show an illustrative fixed-rate bond example")
-    commands.add_parser("curve", help="Fit NSS to the invented offline curve CSV")
-    args = parser.parse_args()
-    if args.command == "curve":
-        _curve_example()
-        return
-    if args.command != "bond":
-        parser.print_help()
-        return
+def _risk_example(curve: ZeroCurve | None = None) -> None:
+    """Illustrative instantaneous risk, explicitly interpreting rates as zeros."""
+    if curve is None:
+        curve = _load_curve().curve
+    bond = FixedRateBond(date(2025, 4, 15), date(2055, 1, 15), coupon_rate=0.04)
+    print("Illustrative curve-risk example (invented; no market data)")
+    print("Fitted rates are interpreted as continuously compounded zero rates")
+    print("for this educational example; NSS fitting does not bootstrap par yields.")
+    print("Time convention: Actual/365 = actual calendar days from settlement / 365.0")
+    print(f"Settlement: {bond.settlement_date}; maturity: {bond.maturity_date}")
+    print(f"Face value: {bond.face_value:.2f}; coupon: {bond.coupon_rate:.2%} annual; semiannual")
+    print("All prices, P&L and DV01s are currency amounts for this face value.")
+    print(f"Base zero-curve price: {curve_price(bond, curve):.8f} (dirty)")
+    for name, shock in (
+        ("Parallel +25 bp", parallel_shock(25)),
+        ("Parallel -25 bp", parallel_shock(-25)),
+        ("Steepener (2/10/30Y: -10/0/+10 bp)", steepener_shock()),
+        ("Flattener (2/10/30Y: +10/0/-10 bp)", flattener_shock()),
+    ):
+        result = evaluate_scenario(bond, curve, shock, name)
+        print(f"{result.name}: base={result.base_price:.8f}, "
+              f"shocked={result.shocked_price:.8f}, P&L={result.pnl:+.8f}")
+    sensitivities = key_rate_dv01(bond, curve)
+    for item in sensitivities:
+        print(f"{item.tenor_years:g}Y KRDV01: {item.dv01:.10f}")
+    parallel = parallel_dv01(bond, curve)
+    total = fsum(item.dv01 for item in sensitivities)
+    print(f"Parallel DV01: {parallel:.10f}")
+    print(f"Sum of KRDV01: {total:.10f}")
+    print(f"Reconciliation difference (sum - parallel): {total - parallel:+.12e}")
+    print("DV01 uses [P(-1 bp) - P(+1 bp)]/2; 1 bp = 0.0001 decimal zero rate.")
 
+
+def _bond_example() -> None:
+    """Print the original nominal-YTM bond example."""
     bond = FixedRateBond(date(2025, 4, 15), date(2030, 1, 15), coupon_rate=0.04)
     ytm = 0.045
     result = bond.analytics(ytm)
@@ -69,6 +99,33 @@ def main() -> None:
     print(f"Convexity: {result.convexity:.6f} years squared (P''(y)/P; decimal YTM)")
     print(f"DV01: {result.dv01:.6f} currency units for 1 bp (0.0001 decimal YTM)")
     print("DV01 convention: [dirty P(y - 1 bp) - dirty P(y + 1 bp)] / 2")
+
+
+def main() -> None:
+    """Print help or deterministic offline examples of the three capabilities."""
+    parser = argparse.ArgumentParser(
+        description="Educational fixed-income analytics with decimal-rate inputs."
+    )
+    commands = parser.add_subparsers(dest="command")
+    commands.add_parser("bond", help="Show an illustrative fixed-rate bond example")
+    commands.add_parser("curve", help="Fit NSS to the invented offline curve CSV")
+    commands.add_parser("risk", help="Reprice an illustrative bond under zero-curve shocks")
+    commands.add_parser("demo", help="Run bond, curve and risk examples in order")
+    args = parser.parse_args()
+    if args.command == "bond":
+        _bond_example()
+    elif args.command == "curve":
+        _curve_example()
+    elif args.command == "risk":
+        _risk_example()
+    elif args.command == "demo":
+        _bond_example()
+        print()
+        fit = _curve_example()
+        print()
+        _risk_example(fit.curve)
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":

@@ -2,9 +2,9 @@
 
 A small Python 3.12+ educational/research project focused on mathematical
 transparency, explicit financial conventions, and deterministic offline execution.
-**Phases 1 and 2 implement fixed-rate bond analytics and Nelson-Siegel-Svensson
-(NSS) yield-curve modelling.** Interest-rate/curve-risk analytics remain an
-unimplemented placeholder.
+**All three intended capabilities are implemented:** fixed-rate bond analytics,
+Nelson-Siegel-Svensson (NSS) yield-curve modelling, and interest-rate/curve-risk
+analytics. This is an educational library, not a production pricing platform.
 
 ## Exactly three capabilities
 
@@ -16,7 +16,7 @@ unimplemented placeholder.
    loadings, scalar/vector evaluation, deterministic nonlinear and multi-start
    calibration using scipy.optimize.least_squares, residuals, RMSE in decimal
    rates and basis points, and observation/fit plots.
-3. **Not yet implemented - interest-rate and curve risk:** planned bond valuation
+3. **Implemented - interest-rate and curve risk:** bond valuation
    from continuously compounded zero rates, parallel and generic piecewise-linear
    shocks, steepeners, flatteners, and key-rate DV01.
 
@@ -133,7 +133,8 @@ Only option-free bonds with regular maturity-based annual or semiannual coupons
 are supported. There is no issue date, irregular first/final coupon, holiday
 adjustment, business-day convention, special end-of-month rule, or ex-coupon
 handling. Calculations use floating-point arithmetic and deterministic
-illustrative inputs. There is no yield solver or explicit zero-curve valuation.
+illustrative inputs. There is no yield solver. Explicit zero-curve valuation is
+provided separately by risk.curve_price and does not change the YTM bond API.
 
 ## Implemented NSS API and calibration
 
@@ -218,7 +219,7 @@ Tau bounds can constrain unusual curves. There are no shape, positivity or
 arbitrage constraints, no observation weights, and no extrapolation guarantees.
 Reproducibility assumes the same numerical environment; dependencies are not locked.
 
-## Curve conventions and future risk module
+## Curve conventions and zero-rate interpretation
 
 The fitting API accepts **generic maturity/rate observations** and does not
 assign a financial interpretation or compounding convention to them.
@@ -233,17 +234,138 @@ an educational approximation unless a proper bootstrap has been performed.
 This project does not currently implement bootstrapping.
 
 YTM-based bond pricing and discounting individual cash flows from an explicit
-zero curve are distinct calculations. The later curve-risk module will require
+zero curve are distinct calculations. The curve-risk module requires
 the caller to interpret supplied rates explicitly as **continuously compounded
 annual zero rates** in decimal units, with DF(t) = exp(-r(t) * t) for t in years.
-NSS fitting alone does not establish that interpretation. Curve-risk calculations
-are not implemented in this phase.
+NSS fitting alone does not establish that interpretation.
 
-Planned default key-rate tenors are 2Y, 5Y, 10Y, and 30Y. For sorted keys, each
-basis will equal one at its own key and zero at the others, with linear
-interpolation between keys. The first basis stays one before the first key; the
-last stays one after the last key, with other bases zero in those respective
-tails. Thus the bases will sum to one at every relevant positive maturity.
+## Implemented zero-curve valuation and risk API
+
+ZeroCurve is a minimal protocol with yield_rate(maturity_years), evaluated at
+scalar positive years and returning a finite scalar continuous annual decimal
+zero rate (a zero-dimensional NumPy array is also accepted). NSSCurve can be
+passed directly when the caller explicitly chooses that rate interpretation.
+The library cannot infer the economic meaning of supplied observations.
+
+curve_price(bond, curve) reuses FixedRateBond.coupon_schedule(), excludes
+settlement-date payments, and adds principal to the last coupon. It returns a
+**dirty currency price for the supplied face value**, without subtracting accrued
+interest. The existing bond schedule limitations still apply.
+
+```text
+t_i = (cash_flow_date_i - settlement_date).days / 365.0
+CF_i = face_value * coupon_rate / frequency  (+ face_value at maturity)
+DF(t_i) = exp(-r(t_i) * t_i)
+P = sum_i CF_i * DF(t_i)
+```
+
+This **simplified Actual/365** convention counts actual calendar days, including
+leap days, but always divides by 365.0. It is a project convention, not a universal
+market convention. It differs from the fractional coupon-period times used by
+bonds.py for nominal annual YTM compounded at coupon frequency. Curve pricing
+never routes through that YTM formula. Negative zero rates are allowed.
+Nonfinite curve outputs and prices outside positive floating-point range fail
+with ValueError.
+
+### Shocks and scenarios
+
+parallel_shock(shift_bps) returns a callable decimal shift for any finite bp
+input, including +/-25 bp. piecewise_linear_shock(anchor_years, shifts_bps)
+accepts nonempty 1D arrays of equal length: finite, positive, strictly increasing
+anchor years and finite bp shocks. Duplicate or unsorted anchors fail. Shocks
+interpolate linearly between anchors and stay flat at the first/last shock in
+the respective tails. A single anchor defines a constant shock.
+
+**1 bp = 0.0001 decimal rate.** Factories convert bp to decimal changes exactly
+once at construction. Returned shock(t) callables accept positive years and
+return decimals. ShockedCurve(base_curve, shock) adds that decimal change to
+the base rate without modifying the base curve. Its shock argument takes
+decimals, not bp; use the factories to convert bp inputs.
+
+The illustrative defaults are:
+
+| Definition | 2Y | 10Y | 30Y |
+| --- | ---: | ---: | ---: |
+| steepener_shock() | -10 bp | 0 bp | +10 bp |
+| flattener_shock() | +10 bp | 0 bp | -10 bp |
+
+Both functions accept custom anchor_years and shifts_bps and use the same
+interpolation/tails as piecewise_linear_shock. These are illustrative definitions;
+there is no single universally correct steepener or flattener.
+
+evaluate_scenario(bond, curve, shock, name) fully reprices and returns
+ScenarioResult(name, base_price, shocked_price), with pnl as a property:
+
+```text
+shocked_rate(t) = base_rate(t) + shock(t)   # decimal zero rates
+P&L = shocked_price - base_price           # currency for the bond's face value
+```
+
+Scenarios are instantaneous: settlement and cash flows remain fixed. There is
+no passage of time, carry, transaction costs, or curve recalibration under shocks.
+Caller-provided curves and shock callables must be deterministic and should not
+mutate their own state.
+
+```python
+from datetime import date
+from fixed_income import (
+    FixedRateBond, NSSCurve, curve_price, evaluate_scenario,
+    parallel_shock, key_rate_dv01, parallel_dv01,
+)
+
+bond = FixedRateBond(date(2025, 4, 15), date(2055, 1, 15), 0.04)
+# Explicitly interpret these invented NSS rates as continuous annual zero rates.
+zero_curve = NSSCurve(0.04, -0.015, 0.02, -0.006, 1.5, 7.0)
+print(curve_price(bond, zero_curve))
+print(evaluate_scenario(bond, zero_curve, parallel_shock(25), "+25 bp").pnl)
+print(key_rate_dv01(bond, zero_curve))
+print(parallel_dv01(bond, zero_curve))
+```
+
+### Key-rate basis, DV01 and reconciliation
+
+key_rate_basis(maturity_years, key_tenors=(2, 5, 10, 30)) returns dimensionless
+weights with shape (*maturity_shape, number_of_keys). Scalar maturity yields
+a vector in key order. Keys must be positive, finite, nonempty and strictly
+increasing. One key is supported and has weight one everywhere.
+
+Each basis equals one at its own key and zero at every other key. Between
+adjacent keys only the neighboring two bases are nonzero, linearly interpolating
+with weights summing to one. Below the first key its basis is one; above the
+last key its basis is one. Thus **sum_i basis_i(t) = 1** at every positive
+maturity, including both tails.
+
+key_rate_dv01(bond, curve, key_tenors=(2, 5, 10, 30)) returns an ordered tuple
+of KeyRateDV01(tenor_years, dv01). parallel_dv01(bond, curve) returns a scalar.
+Both use full repricing under continuous zero-rate shifts and Actual/365 times:
+
+```text
+KRDV01_i = [P(r - 0.0001*basis_i) - P(r + 0.0001*basis_i)] / 2
+parallel_DV01 = [P(r - 0.0001) - P(r + 0.0001)] / 2
+reconciliation_difference = sum_i KRDV01_i - parallel_DV01
+```
+
+These are currency amounts for one bp, not derivatives per unit decimal rate.
+They have positive signs for conventional positive-cash-flow bonds; an
+unexposed key can have zero sensitivity.
+
+Partition of unity makes the linear sensitivities additive. Independent central
+full repricing is nonlinear, so the sum of KRDV01s only approximately matches
+parallel DV01. For positive PVs and h=0.0001, each cash-flow contribution is
+PV*sinh(h*t*weight); linear terms cancel in the reconciliation. The discrepancy
+starts at order h^3. Tests bound parallel_DV01 - sum KRDV01 by
+sum PV*(h*t)^3*cosh(h*t)/6 plus floating-point rounding, and also check the leading
+cubic term with a fifth-order remainder bound.
+
+### Risk modelling limitations
+
+The caller is responsible for supplying meaningful continuous zero rates.
+There is no bootstrap, automatic rate-convention conversion, credit/default or
+option modelling, arbitrage enforcement, or guarantee of sensible extrapolation.
+Risk holds cash flows fixed, ignores elapsed time and liquidity, and depends on
+the chosen anchors, basis and interpolation. Scenario P&L signs for steepeners
+and flatteners depend on the bond's cash-flow exposures. Curve DV01 need not
+equal the YTM DV01: their rate variables, compounding and time conventions differ.
 
 ## Non-goals
 
@@ -265,6 +387,9 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m fixed_income.cli --help
 .\.venv\Scripts\python.exe -m fixed_income.cli bond
 .\.venv\Scripts\python.exe -m fixed_income.cli curve
+.\.venv\Scripts\python.exe -m fixed_income.cli risk
+.\.venv\Scripts\python.exe -m fixed_income.cli demo
+.\.venv\Scripts\python.exe -m pytest tests\test_risk.py -q
 .\.venv\Scripts\python.exe -m pytest tests\test_curves.py -q
 .\.venv\Scripts\python.exe -m pytest tests\test_bonds.py -q
 .\.venv\Scripts\python.exe -m pytest -q
@@ -287,7 +412,12 @@ to the repository root, fits NSS and prints all six parameters, optimizer status
 and RMSE in both decimal rate units and basis points. It saves
 outputs/yield_curve.png, creating the gitignored outputs directory if needed.
 The CSV is invented illustrative data, never current/live market data.
-Curve-risk commands are not implemented.
+The risk command creates an invented 30-year bond and fits that CSV, explicitly
+interpreting the fitted rates as continuous zeros for an educational example.
+It prints base price, parallel +/-25 bp and default shape scenarios, four
+KRDV01s, parallel DV01, their sum and reconciliation difference.
+The demo command runs bond analytics, NSS fitting and curve risk in that order,
+reusing the fitted curve within the demo.
 
 Deterministic bond tests check par/premium/discount pricing, price monotonicity,
 accrual and coupon boundaries, leap-year/month-end schedules, single fractional
@@ -299,8 +429,11 @@ in the tests. Deterministic curve tests cover scalar/vector formulas and shapes,
 short-maturity accuracy against high-precision reference calculations, input
 validation, synthetic curve-fit quality, RMSE units, reproducibility, result
 metadata, candidate selection and failure handling, plotting and the curve CLI.
-Only the risk test module remains an explicitly skipped placeholder; that skip
-establishes no numerical correctness.
+Risk tests independently check flat continuous-zero discounting, Actual/365
+and coupon boundaries, scenario units/signs/P&L, interpolation/tails, default
+and custom shapes, key partition of unity, single-cash-flow sensitivities,
+mathematically bounded DV01 reconciliation, input validation, base-curve
+immutability and the risk/demo CLI. No placeholder tests remain.
 
 ## Repository layout
 
