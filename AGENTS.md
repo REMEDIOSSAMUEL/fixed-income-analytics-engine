@@ -46,7 +46,10 @@ or trading platform.
 
 ## Current phase
 
-Only the repository scaffold is implemented. Financial modules and their tests
-remain placeholders. Do not begin financial implementation without a new task.
-Validate editable installation, package import, pytest, and git diff --check
-before committing this phase.
+All three intended capabilities are implemented: fixed-rate bond analytics,
+Nelson-Siegel-Svensson yield-curve modelling, and interest-rate/curve-risk
+analytics. Financial modules have deterministic tests; none are placeholders.
+Further work is limited to review and defect correction unless a new task
+explicitly authorizes feature development within the project scope.
+Validate editable installation, package import, pytest, affected CLI commands,
+and git diff --check before committing corrections.

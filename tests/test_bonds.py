@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError, replace
 from datetime import date, datetime
 from math import isfinite
 
+import numpy as np
 import pytest
 
 from fixed_income import BondAnalytics, FixedRateBond
@@ -252,3 +253,57 @@ def test_cli_example(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixt
         "4.50%", "0.045000 decimal", "1 bp (0.0001 decimal YTM)", "currency units",
     ):
         assert label in output
+
+
+@pytest.mark.parametrize("dtype", [np.float16, np.float32, np.float64])
+@pytest.mark.parametrize("frequency", [1, 2])
+def test_real_scalar_inputs_preserve_financial_precision(
+    dtype: type[np.floating], frequency: int,
+) -> None:
+    coupon_rate, face, ytm = dtype(0.06), dtype(100.1), dtype(0.04)
+    bond = FixedRateBond(
+        date(2024, 4, 1), date(2024, 7, 1), coupon_rate,
+        face_value=face, frequency=frequency,
+    )
+    # One contractual payment, 91 days away. The full annual/semiannual
+    # period has 366/182 days. Preserve the inputs' represented values;
+    # additional arithmetic must not run in the input dtype's lower precision.
+    q = 91 / (366 if frequency == 1 else 182)
+    coupon = float(face) * float(coupon_rate) / frequency
+    cash_flow = float(face) + coupon
+    y = float(ytm)
+    base = 1 + y / frequency
+    price = cash_flow / base**q
+    accrued = coupon * (1 - q)
+    expected_dv01 = (
+        cash_flow / (1 + (y - 0.0001) / frequency)**q
+        - cash_flow / (1 + (y + 0.0001) / frequency)**q
+    ) / 2
+    expected = {
+        "dirty_price": price,
+        "clean_price": price - accrued,
+        "macaulay_duration": q / frequency,
+        "modified_duration": q / (frequency * base),
+        "convexity": q * (q + 1) / (frequency * base)**2,
+        "dv01": expected_dv01,
+    }
+    result = bond.analytics(ytm)
+    assert bond.accrued_interest() == pytest.approx(accrued, rel=2e-14)
+    assert result.accrued_interest == pytest.approx(accrued, rel=2e-14)
+    for name, value in expected.items():
+        # Absolute tolerance allows central-repricing rounding, while rejecting
+        # a rounded/vanishing 1 bp shift or reduced-precision cash flows.
+        assert getattr(bond, name)(ytm) == pytest.approx(value, rel=2e-13, abs=3e-14)
+        assert getattr(result, name) == pytest.approx(value, rel=2e-13, abs=3e-14)
+    assert expected_dv01 > 0
+
+
+@pytest.mark.parametrize("field", ["face_value", "coupon_rate"])
+def test_unrepresentable_real_input_is_clear(bond: FixedRateBond, field: str) -> None:
+    with pytest.raises(ValueError, match=field):
+        replace(bond, **{field: 10**400})
+
+
+def test_unrepresentable_real_yield_is_clear(bond: FixedRateBond) -> None:
+    with pytest.raises(ValueError, match="ytm"):
+        bond.analytics(10**400)

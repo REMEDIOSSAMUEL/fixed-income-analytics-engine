@@ -30,7 +30,11 @@ on the bond. Supported frequencies are 1 (annual) and 2 (semiannual).
 FixedRateBond is an immutable dataclass with settlement_date, maturity_date,
 coupon_rate, face_value=100.0, and frequency=2. Dates must be datetime.date values,
 maturity must follow settlement, face value must be positive, and coupon rate
-must be nonnegative. Numerical inputs must be finite. Zero coupons and negative
+must be nonnegative. Numerical inputs must be finite. Accepted real scalars
+(including NumPy scalars) are converted to Python floats before arithmetic,
+so lower-precision input dtypes do not reduce cash-flow or 1 bp bump precision.
+This preserves the supplied values; it cannot restore precision already lost
+when those values were created. Zero coupons and negative
 YTM are supported, provided 1 + YTM/frequency > 0. DV01 and the combined analytics
 also require valid yields at both +/-1 bp shifts. Prices outside finite positive
 floating-point range raise ValueError.
@@ -422,7 +426,8 @@ reusing the fitted curve within the demo.
 Deterministic bond tests check par/premium/discount pricing, price monotonicity,
 accrual and coupon boundaries, leap-year/month-end schedules, single fractional
 periods, zero coupons, annual/semiannual frequency, negative and zero yields,
-face-value scaling, input validation, combined analytics, and the CLI.
+face-value scaling, real-scalar precision, input validation, combined analytics,
+and the CLI.
 Independent numerical first/second derivatives check duration and convexity;
 direct repricing checks DV01. Derivative steps and tolerances are documented
 in the tests. Deterministic curve tests cover scalar/vector formulas and shapes,

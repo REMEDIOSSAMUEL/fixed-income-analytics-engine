@@ -15,9 +15,17 @@ from numbers import Real
 from dateutil.relativedelta import relativedelta
 
 
-def _finite_real(name: str, value: float) -> None:
-    if isinstance(value, bool) or not isinstance(value, Real) or not isfinite(value):
+def _finite_real(name: str, value: float) -> float:
+    """Validate and promote real scalars before cash-flow or yield arithmetic."""
+    if isinstance(value, bool) or not isinstance(value, Real):
         raise ValueError(f"{name} must be a finite real number")
+    try:
+        result = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{name} must be a finite real number") from exc
+    if not isfinite(result):
+        raise ValueError(f"{name} must be a finite real number")
+    return result
 
 
 @dataclass(frozen=True)
@@ -55,7 +63,8 @@ class FixedRateBond:
     Settlement on a coupon date excludes that day's payment and starts a
     new accrual period with zero accrued interest. Otherwise accrual is
     actual elapsed days / actual days in the complete coupon period.
-    YTM belongs to each analytics call, not to the security.
+    YTM belongs to each analytics call, not to the security. Accepted real
+    scalars are converted to Python floats before cash-flow and yield arithmetic.
     """
 
     settlement_date: date
@@ -69,8 +78,8 @@ class FixedRateBond:
             raise ValueError("settlement_date and maturity_date must be datetime.date values")
         if self.maturity_date <= self.settlement_date:
             raise ValueError("maturity_date must be after settlement_date")
-        _finite_real("face_value", self.face_value)
-        _finite_real("coupon_rate", self.coupon_rate)
+        object.__setattr__(self, "face_value", _finite_real("face_value", self.face_value))
+        object.__setattr__(self, "coupon_rate", _finite_real("coupon_rate", self.coupon_rate))
         if self.face_value <= 0:
             raise ValueError("face_value must be positive")
         if self.coupon_rate < 0:
@@ -121,7 +130,7 @@ class FixedRateBond:
         return coupon * self._accrual_fraction()
 
     def _discount_base(self, ytm: float) -> float:
-        _finite_real("ytm", ytm)
+        ytm = _finite_real("ytm", ytm)
         base = 1.0 + ytm / self.frequency
         if base <= 0:
             raise ValueError("ytm must satisfy 1 + ytm / frequency > 0")
@@ -203,6 +212,7 @@ class FixedRateBond:
         One basis point is exactly 0.0001. Both shifted yields must be valid.
         A conventional positive-duration bond has positive DV01.
         """
+        ytm = _finite_real("ytm", ytm)
         self._discount_base(ytm)
         return (self.dirty_price(ytm - 0.0001) - self.dirty_price(ytm + 0.0001)) / 2
 
@@ -212,6 +222,7 @@ class FixedRateBond:
         Currency measures use this face value; durations are years and
         convexity is years squared. Requires valid yields at ytm +/-1 bp.
         """
+        ytm = _finite_real("ytm", ytm)
         dirty = self.dirty_price(ytm)
         accrued = self.accrued_interest()
         return BondAnalytics(
