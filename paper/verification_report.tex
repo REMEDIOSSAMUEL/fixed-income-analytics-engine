@@ -1,0 +1,1485 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs,longtable}
+\usepackage[margin=25mm]{geometry}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\setlength{\emergencystretch}{2em}
+\newcommand{\bp}{\mathrm{bp}}
+\newcommand{\BuildResult}{Successfully compiled with latexmk 4.88 and MiKTeX-pdfTeX 4.27 (MiKTeX 26.5).}
+\title{Independent Mathematical Verification\\
+of the Fixed-Income Analytics Engine}
+\author{Technical verification record}
+\date{14 September 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+The implemented fixed-rate bond, Nelson--Siegel--Svensson (NSS), and
+continuous-zero curve-risk mathematics were reviewed independently against
+their stated assumptions. Analytical derivations, source inspection, existing
+tests, and additional numerical calculations agree. No mathematical defect
+was found within the reviewed conventions. The baseline suite passed all
+234 tests; all four illustrative command-line examples completed.
+Duration and convexity checks exhibit the expected finite-difference error
+behaviour. Independently generated noiseless NSS observations fit to near
+floating-point precision. Key-rate weights form a partition of unity;
+the small difference between summed key-rate and parallel full-repricing
+DV01 is explained by a cubic term.
+This is a verification report for later academic use, not a dissertation
+or an unrestricted certification of all possible floating-point inputs.
+\end{abstract}
+
+\section{Review basis, scope, and reproducibility}
+The numerical review was executed on 13 September 2026; this report was
+finalized on 14 September 2026. The audited source revision is:
+\begin{center}\small
+\texttt{7eee019c2b186b95791bba42a7dc8edf5c376047}
+\end{center}
+The initial branch was \texttt{main}, with an empty
+\texttt{git status --short}. The remote was
+\url{https://github.com/REMEDIOSSAMUEL/fixed-income-analytics-engine.git}.
+The six inspected commits, newest first, were \texttt{7eee019},
+\texttt{33ce60a}, \texttt{956337d}, \texttt{b8ed944},
+\texttt{677efea}, and \texttt{ef25a20}.
+
+Before mathematical work, the complete contents of \texttt{AGENTS.md},
+\texttt{README.md}, \texttt{pyproject.toml}, all five tracked Python files
+under \texttt{src/fixed\_income/}, and all three files under \texttt{tests/}
+were read. The illustrative CSV and existing ignore rules were also inspected.
+Implementation, documentation, and tests were treated as separate evidence:
+a test that repeats the implementation cannot by itself establish the
+underlying financial identity.
+
+No financial source, tests, public interface, dependency declaration, or
+CLI command was changed. Additional calculations used stdin-fed Python;
+the full scripts are reproduced in Appendix~\ref{sec:scripts}, without
+creating a permanent Python verification module. Standard-library
+\texttt{Decimal} supplied an independent 90-digit NSS reference.
+Reported numerical values come from actual execution, not the README.
+
+\subsection{Assumptions and the scope of exactness}
+A bond has fixed, nonnegative coupons, positive redemption, regular annual
+or semiannual periods, and maturity strictly after settlement.
+There are no irregular coupons, issue-date constraints, business-day
+adjustments, ex-coupon rules, credit events, optionality, or changing cash
+flows. Schedules are anchored to maturity; nonexistent calendar days clip
+to the end of the corresponding month. There is no additional end-of-month
+rule. The settlement-date coupon is outside the future payment set.
+
+Nominal annual YTM discounting uses a strictly positive periodic
+accumulation factor. Curve-risk discounting separately uses explicitly
+interpreted continuously compounded zero rates and actual days divided by
+365. Negative yields and zero rates are compatible with the mathematics
+when the expressions are valid. Shocks hold settlement and cash flows fixed.
+Curve and shock callables are deterministic.
+
+An \emph{exact identity} below means equality over real arithmetic under these
+assumptions. Numerical powers, exponentials, sums, and optimizations introduce
+rounding or approximation. Tests and grids provide evidence at their inputs;
+analytical arguments establish general identities. This review does not
+establish universal market day-count applicability, global calibration
+optimality, parameter uniqueness, arbitrage freedom, or accuracy for every
+extreme representable input.
+
+\subsection{Execution environment}
+Execution used native Windows PowerShell and the repository virtual environment.
+Python was 3.12.10, 64-bit, on Windows 11
+(\texttt{10.0.26200}). Installed versions were NumPy 2.5.3,
+SciPy 1.18.1, pandas 3.0.5, matplotlib 3.11.2,
+python-dateutil 2.9.0.post0, and pytest 9.1.1.
+The package's \texttt{direct\_url.json} reported
+\texttt{"editable": true}; import resolved to this repository's
+\texttt{src/fixed\_income/\_\_init\_\_.py}.
+The existing editable installation and package import were thus verified;
+the environment was not reinstalled. Dependencies are not locked by the
+project, so another numerical environment may round or optimize differently.
+
+\section{Notation and units}
+\small
+\begin{longtable}{@{}p{0.20\textwidth}p{0.74\textwidth}@{}}
+\toprule
+Symbol & Definition and convention\\
+\midrule
+\endhead
+$F$ & Face/redemption amount in currency units; default 100.\\
+$c$ & Annual coupon rate as a decimal.\\
+$m$ & Coupon payments per year, 1 or 2; $1/m$ converts coupon periods to years.\\
+$C$ & Currency coupon cash flow per payment period.\\
+$y$ & Nominal annual decimal YTM compounded $m$ times per year.\\
+$\alpha,w$ & Accrued and remaining fractions of the current coupon period; $w=1-\alpha$.\\
+$N,i$ & Number of strictly future payments and payment index $1\leq i\leq N$.\\
+$q_i$ & Fractional coupon-period count from settlement to payment $i$.\\
+$T_i=q_i/m$ & Payment time in coupon-based years for YTM analytics.\\
+$CF_i,PV_i$ & Currency cash flow and its YTM-discounted present value.\\
+$P_{\rm dirty},P_{\rm clean},AI$ & Dirty price, clean price, accrued interest, in currency for the supplied face value.\\
+$P(y),P',P''$ & Dirty YTM price and derivatives with respect to annual decimal $y$.\\
+$D_{\rm Mac},D_{\rm Mod},\mathcal C$ & Macaulay and modified durations (years), and normalized convexity (conventionally years squared).\\
+$h$ & Decimal-rate perturbation; DV01 uses $h=10^{-4}$.\\
+$T$ & Generic curve maturity in years.\\
+$r_{\rm NSS}(T)$ & NSS decimal rate; its compounding convention is supplied by the caller.\\
+$\beta_0,\ldots,\beta_3$ & NSS coefficients in decimal rate units.\\
+$\tau_1,\tau_2$ & Strictly positive NSS decay scales in years.\\
+$x,L_1,L_2$ & Dimensionless ratio $x=T/\tau$ and NSS factor loadings.\\
+$\theta$ & NSS vector $(\beta_0,\beta_1,\beta_2,\beta_3,\tau_1,\tau_2)$.\\
+$n,e_i$ & Observation count and observed-minus-fitted decimal-rate residual.\\
+$t_i$ & Actual settlement-to-payment calendar days divided by 365, in curve-risk years.\\
+$r(t_i),DF(t_i),V_i$ & Continuous annual decimal zero rate, discount factor, and currency zero-discounted cash-flow PV.\\
+$s,P(s)$ & Parallel decimal zero-rate shift and corresponding dirty price.\\
+$k_j,b_j(T),J$ & Ordered key maturities, dimensionless key basis, and number of keys.\\
+$P_j^\pm$ & Fully repriced dirty price under $\pm h b_j$ zero-rate changes.\\
+$\Delta$ & Sum of key-rate DV01s minus parallel DV01, in price units.\\
+$\epsilon$ & Binary64 machine precision, approximately $2.22\,10^{-16}$.\\
+$O(h^p)$ & Remainder bounded locally by a constant times $|h|^p$, with other inputs fixed.\\
+\bottomrule
+\end{longtable}
+\normalsize
+The two times $T_i$ and $t_i$ distinguish the YTM and zero-curve conventions.
+
+\section{Fixed-rate bond foundations and fractional-period pricing}
+\subsection{Coupons, accrual, and clean price}
+The annual contractual coupon amount is $Fc$. Dividing it equally among
+$m$ regular payments gives the exact identities
+\begin{equation}
+ C=\frac{Fc}{m},\qquad CF_i=C+F\,\mathbf 1_{\{i=N\}},
+\end{equation}
+where the indicator $\mathbf 1_{\{i=N\}}$ is one at redemption and zero
+otherwise. Currency times annual coupon rate divided by payments per year
+is currency per payment.
+
+Let $d_-$ be the coupon date on or immediately before settlement $d_s$,
+and $d_+$ the first strictly later coupon date. The project defines
+\begin{equation}
+ \alpha=\frac{\operatorname{days}(d_s-d_-)}
+                   {\operatorname{days}(d_+-d_-)},\quad
+ 0\leq\alpha<1,\qquad AI=C\alpha.
+\end{equation}
+The calendar-day ratio is dimensionless. Linear accrual over this particular
+coupon period is an assumption, not a consequence of discounting.
+This Actual/Actual-within-period convention does not implement every market's
+day-count or accrued-interest rule. By the project's clean-price definition,
+\begin{equation}
+ P_{\rm clean}=P_{\rm dirty}-AI,\qquad
+ P_{\rm dirty}=P_{\rm clean}+AI.
+\end{equation}
+These are exact accounting identities under the chosen accrual rule.
+The amounts are not implicitly normalized to 100.
+
+The source implements accrual in \texttt{bonds.py:123--130};
+\texttt{clean\_price} at line 168 subtracts it. Existing tests count 90
+elapsed days in a 181-day period and check an exactly half-accrued leap-year
+period.
+
+\subsection{Derivation of between-coupon pricing}
+Define the periodic accumulation factor $B=1+y/m>0$.
+For a constant YTM under the fractional-period convention, accumulation
+over $q$ coupon periods multiplies an amount by $B^q=\exp(q\log B)$;
+discounting is its inverse. This extension of periodic compounding to
+fractional periods is an explicit assumption.
+Regular future payments are one coupon period apart, so
+\begin{equation}
+ w=1-\alpha,\qquad q_1=w,\qquad q_i=w+i-1,\qquad T_i=\frac{q_i}{m}.
+\end{equation}
+Linearity of valuation of fixed cash flows then yields
+\begin{equation}\label{eq:ytm}
+ P(y)=P_{\rm dirty}(y)=\sum_{i=1}^{N}CF_i B^{-q_i},
+ \qquad PV_i=CF_i B^{-q_i}.
+\end{equation}
+Exponents are dimensionless period counts and need not be integers:
+settlement can occur partway through a period. $T_i$ is not generally
+actual days divided by 365.
+
+In \texttt{bonds.py:139--159}, the zero-based loop index is $i-1$:
+\texttt{q = w + index}. The internal schedule has one preceding/on-settlement
+date before the future dates. Therefore \texttt{len(dates)-1} counts future
+payments and \texttt{index == len(dates)-2} identifies the last one for
+principal addition. This agrees with (\ref{eq:ytm}) without an off-by-one error.
+
+\subsection{Settlement exactly on a coupon date}
+The backward schedule at \texttt{bonds.py:94--107} stops at a date less
+than or equal to settlement. The public schedule removes that first date.
+On a coupon date, $d_-=d_s$, $\alpha=0$, $AI=0$, $w=1$, and $q_1=1$.
+That day's coupon is excluded, and the next payment is one full period away.
+
+Actual checks with maturity 15 January 2027, $F=100$, $c=0.04$, $m=2$:
+\begin{center}\small
+\begin{tabular}{@{}llllrr@{}}
+\toprule
+Settlement & Previous & Next & $N$ & $AI$ & $q_1$\\
+\midrule
+2025-07-14 & 2025-01-15 & 2025-07-15 & 4 & 1.988950276243 & 0.005524861878\\
+2025-07-15 & 2025-07-15 & 2026-01-15 & 3 & 0 & 1\\
+2025-07-16 & 2025-07-15 & 2026-01-15 & 3 & 0.010869565217 & 0.994565217391\\
+\bottomrule
+\end{tabular}
+\end{center}
+The future-payment count decreases precisely on the coupon date.
+Month-end anchoring and annual leap-day tests were also inspected: each
+date is calculated from maturity, not recursively from an already clipped date.
+
+\section{Par-bond identity: geometric-series proof}
+On a coupon date $q_i=i$. Set $c=y$, $a=y/m$, $v=(1+a)^{-1}$, so $C=Fa$.
+Then
+\[
+ P=Fa\sum_{i=1}^{N}v^i+Fv^N.
+\]
+For $a\ne0$, multiplying the geometric sum by $1-v$ gives
+\[
+ (1-v)\sum_{i=1}^{N}v^i=v-v^{N+1}=v(1-v^N).
+\]
+Since $1-v=av$,
+\begin{equation}
+ \sum_{i=1}^{N}v^i=\frac{1-v^N}{a},\qquad
+ P=F(1-v^N)+Fv^N=F.
+\end{equation}
+For $a=0$, coupons are zero and undiscounted redemption alone gives $P=F$.
+These identities are exact for a regular bond on a coupon date with matching
+coupon and nominal YTM compounding. They do not assert dirty par between coupons.
+
+Independent sums used settlement 15 January 2025, maturity 15 January 2030,
+$F=100$ and $c=y=0.04$. Annual ($N=5$) and semiannual ($N=10$) cases each
+returned \texttt{99.99999999999999}; the engine returned the same values.
+The approximately $1.4\,10^{-14}$ distance from 100 is rounding. Accrual is
+zero, so clean and dirty par agree.
+
+\section{First derivative and duration}
+Hold cash flows, dates, $q_i$, and $m$ fixed. For $B>0$ the real-power
+chain rule applies even to fractional $q_i$:
+\[
+ \frac{d}{dy}B^{-q_i}=-q_i B^{-q_i-1}\frac1m.
+\]
+Termwise differentiation of the finite sum gives the exact identity
+\begin{equation}\label{eq:first}
+ P'(y)=-\sum_i CF_i\frac{q_i}{m}B^{-q_i-1}
+       =-\frac1B\sum_i T_iPV_i.
+\end{equation}
+Macaulay duration is the PV-weighted payment time,
+\[
+ D_{\rm Mac}=\frac{\sum_i T_iPV_i}{P}.
+\]
+Normalizing (\ref{eq:first}) derives modified duration:
+\begin{equation}\label{eq:mod}
+ D_{\rm Mod}=-\frac{P'}P=\frac{D_{\rm Mac}}{1+y/m}.
+\end{equation}
+No integer-exponent assumption was used. $D_{\rm Mac}$ is in years, and
+division by the dimensionless $B$ preserves that time convention.
+Modified duration multiplies an annual decimal yield change, not a
+percentage-number change.
+
+The normalized weighted sum at \texttt{bonds.py:175--182} implements
+$D_{\rm Mac}$; lines 184--190 divide it by $B$.
+At fixed settlement clean and dirty prices have the same unnormalized
+YTM derivatives, since $AI$ is yield-independent. Normalizing by clean
+price would nevertheless define a different duration from this API.
+
+\section{Independent numerical duration and convexity checks}
+\subsection{Independent reference cash flows}
+The numerical bond has settlement 15 April 2025, maturity 15 January 2030,
+$F=100$, $c=0.04$, $m=2$, $y=0.045$.
+The independent script explicitly constructed ten dates: 15 July 2025,
+15 January and 15 July in 2026--2029, and 15 January 2030.
+It used nine cash flows of 2 and a final cash flow of 102, without calling
+engine pricing or analytics methods to produce the reference price function.
+
+Independent day counts give $\alpha=90/181$, with values
+\begin{align*}
+ \alpha&=0.4972375690607735,& w&=0.5027624309392265,\\
+ q_N&=9.502762430939226,& AI&=0.994475138121547.
+\end{align*}
+\begin{center}\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Quantity & Independent calculation & Engine\\
+\midrule
+Dirty price & 98.87131308203281 & 98.87131308203281\\
+Clean price & 97.87683794391127 & 97.87683794391127\\
+$D_{\rm Mac}$ & 4.326726840097139 & 4.326726840097138\\
+$D_{\rm Mod}$ & 4.231517692026542 & 4.231517692026541\\
+$\mathcal C$ & 21.110444849612590 & 21.110444849612588\\
+\bottomrule
+\end{tabular}
+\end{center}
+Independent analytical derivatives were $P'=-418.3757105405171$ and
+$P''=2087.2174020270336$, per unit annual decimal YTM and its square.
+
+\subsection{Duration finite differences and their order}
+Taylor expansion gives
+\begin{align}
+ P(y+h)-P(y-h)&=2hP'(y)+\frac{h^3}{3}P'''(y)+O(h^5),\\
+ -\frac{P(y+h)-P(y-h)}{2hP(y)}
+ &=D_{\rm Mod}-\frac{h^2P'''(y)}{6P(y)}+O(h^4).
+\end{align}
+Here $P'''$ denotes the third YTM derivative. This central estimate has
+second-order truncation error $O(h^2)$; finite-$h$ equality is an approximation.
+The denominator is the independently calculated unshifted dirty price.
+
+\begin{center}\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$h$ (decimal YTM) & Central duration (years) & Signed error (years)\\
+\midrule
+$10^{-2}$ & 4.23346867529047 & $+1.950983264\,10^{-3}$\\
+$10^{-3}$ & 4.23153719801642 & $+1.950598988\,10^{-5}$\\
+$10^{-4}$ & 4.23151788708521 & $+1.950586661\,10^{-7}$\\
+$10^{-5}$ & 4.23151769399938 & $+1.972840558\,10^{-9}$\\
+$10^{-6}$ & 4.23151769257645 & $+5.499058986\,10^{-10}$\\
+$10^{-7}$ & 4.23151769415749 & $+2.130945198\,10^{-9}$\\
+$10^{-8}$ & 4.23151766397402 & $-2.805252652\,10^{-8}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Error means estimate minus independent analytical value. A tenfold step
+reduction initially reduces error by about 100. At $h=10^{-5}$ relative
+error is about $4.7\,10^{-10}$. Subtracting nearby prices eventually
+amplifies roundoff, with a normalized first-difference error scale of
+order $\epsilon/h$ up to problem-dependent constants. An intermediate
+step is preferable to an arbitrarily tiny one.
+
+\subsection{Convexity: independent second differentiation}
+Differentiating (\ref{eq:first}) again contributes $(-q_i-1)/m$ and
+reverses the sign:
+\begin{equation}\label{eq:second}
+ P''(y)=\sum_i CF_i\frac{q_i(q_i+1)}{m^2}B^{-q_i-2}.
+\end{equation}
+This identity is exact for real fractional $q_i$ and $B>0$. The project defines
+\begin{equation}
+ \mathcal C=\frac{P''}P
+ =\sum_i\frac{PV_i}P\frac{q_i}{mB}\frac{q_i+1}{mB}.
+\end{equation}
+Convexity is the normalized second derivative with respect to annual
+decimal YTM, conventionally in years squared. Both $1/m$ factors convert
+period counts to the corresponding time units. No factor $1/2$ enters
+$\mathcal C$ itself; it belongs in the price expansion for small decimal
+yield change $\delta y$:
+\begin{equation}
+ \frac{P(y+\delta y)-P(y)}{P(y)}
+ =-D_{\rm Mod}\delta y+\frac12\mathcal C(\delta y)^2+O((\delta y)^3).
+\end{equation}
+The weighted product at \texttt{bonds.py:192--206} is algebraically
+(\ref{eq:second}). Positive cash flows and positive $q_i$ imply
+positive convexity.
+
+Writing $P^{(4)}$ for the fourth derivative, central second differences obey
+\begin{equation}
+ \frac{P(y+h)-2P(y)+P(y-h)}{h^2}
+ =P''(y)+\frac{h^2}{12}P^{(4)}(y)+O(h^4).
+\end{equation}
+The derivative and its normalized value have $O(h^2)$ truncation error.
+\begin{center}\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$h$ & Central second derivative & Normalized value & Error in $\mathcal C$\\
+\midrule
+$10^{-2}$ & 2087.80194712077 & 21.1163570305629 & $+5.912180950\,10^{-3}$\\
+$10^{-3}$ & 2087.22324657629 & 21.1105039623023 & $+5.911268972\,10^{-5}$\\
+$10^{-4}$ & 2087.21744030527 & 21.1104452367647 & $+3.871520668\,10^{-7}$\\
+$10^{-5}$ & 2087.21758099273 & 21.1104466596998 & $+1.810087163\,10^{-6}$\\
+$10^{-6}$ & 2087.20507544058 & 21.1103201765798 & $-1.246730328\,10^{-4}$\\
+$10^{-7}$ & 2069.10044653341 & 20.9272071143295 & $-1.832377353\,10^{-1}$\\
+$10^{-8}$ & 2131.62820728030 & 21.5596227139383 & $+4.491778643\,10^{-1}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Convergence at larger steps precedes cancellation-driven deterioration.
+At $10^{-4}$ the relative error is about $1.8\,10^{-8}$.
+Three nearly cancelling price terms are divided by $h^2$, amplifying
+roundoff on a scale of order $\epsilon/h^2$.
+Balancing schematic $h^2$ truncation against rounding suggests
+problem-dependent scales near $\epsilon^{1/3}$ for central first differences
+and $\epsilon^{1/4}$ for central second differences. These are scaling
+estimates, not universal optimal-step formulas.
+
+\section{YTM DV01: repricing versus duration approximation}
+One basis point is exactly
+\[
+ 1\bp=0.01\text{ percentage point}=0.0001=10^{-4}
+\]
+in decimal rate units. The positive project DV01 convention is a currency
+price response for one basis point, defined by exact central full repricing:
+\begin{equation}
+ {\rm DV01}_{\rm YTM}=\frac{P(y-h)-P(y+h)}2,\qquad h=10^{-4}.
+\end{equation}
+It is not divided by $h$ and is not a derivative per unit decimal rate.
+Taylor expansion derives
+\begin{equation}
+ \frac{P(y-h)-P(y+h)}2
+ =-hP'(y)-\frac{h^3}{6}P'''(y)+O(h^5)
+ =hPD_{\rm Mod}+O(h^3).
+\end{equation}
+The first-order approximation has $O(h^3)$ absolute error and generally
+$O(h^2)$ relative error if $P'\ne0$. Positive future cash flows imply
+$P'<0$: lowering yield raises price, so down-minus-up DV01 is positive.
+Also $P'''<0$, giving a positive leading cubic correction.
+
+The implementation at \texttt{bonds.py:208--217} fully reprices both
+shifted yields, each of which must satisfy yield and numerical-price limits.
+For the independently constructed bond:
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Quantity (currency for $F=100$) & Actual value\\
+\midrule
+Independent $P(y-h)$ & 98.91316109110264\\
+Independent $P(y+h)$ & 98.82948594513739\\
+Implemented DV01 & 0.04183757298262236\\
+Independent central repricing & 0.04183757298262236\\
+Independent $PD_{\rm Mod}10^{-4}$ & 0.04183757105405172\\
+Central minus duration approximation & $1.928570643461303\,10^{-9}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Agreement of full repricing is exact to the displayed precision.
+The difference from the duration approximation has the predicted sign
+and is a finite-bump effect, not a conversion defect.
+
+\section{NSS model, analytical limits, and numerical stability}
+\subsection{Model and independent loading expansions}
+For $T>0$ and $\tau>0$ define
+\begin{equation}
+ L_1(T;\tau)=\frac{1-\exp(-T/\tau)}{T/\tau},\qquad
+ L_2(T;\tau)=L_1(T;\tau)-\exp(-T/\tau).
+\end{equation}
+These are dimensionless because $T/\tau$ is dimensionless. The model is
+\begin{equation}\label{eq:nss}
+ \begin{split}
+ r_{\rm NSS}(T)={}&\beta_0+\beta_1 L_1(T;\tau_1)
+                  +\beta_2 L_2(T;\tau_1)\\
+                 &+\beta_3 L_2(T;\tau_2).
+ \end{split}
+\end{equation}
+This is a parametric specification, not a bond-pricing identity.
+The four columns in \texttt{curves.py:45--50} are exactly
+$1,L_1(T;\tau_1),L_2(T;\tau_1),L_2(T;\tau_2)$;
+\texttt{yield\_rate} at line 77 multiplies them by the betas.
+Betas are decimal rates and taus are years. The API does not assign a
+compounding convention, bootstrap, or convert par yields into zeros.
+
+Set $x=T/\tau$. Subtracting the exponential series from 1, dividing by
+$x$, and then subtracting the exponential again derives
+\begin{align}
+ e^{-x}&=1-x+\frac{x^2}{2}-\frac{x^3}{6}
+               +\frac{x^4}{24}-\frac{x^5}{120}+\cdots,\\
+ L_1&=1-\frac{x}{2}+\frac{x^2}{6}-\frac{x^3}{24}
+              +\frac{x^4}{120}-\frac{x^5}{720}+O(x^6),\\
+ L_2&=\frac{x}{2}-\frac{x^2}{3}+\frac{x^3}{8}
+              -\frac{x^4}{30}+\frac{x^5}{144}+O(x^6).
+\end{align}
+The coefficient of $x^n$ in $L_2$, $n\geq1$, is
+$(-1)^{n+1}n/(n+1)!$, independently confirming the polynomial coefficients.
+The constant terms establish the exact limits
+\begin{equation}
+ L_1(0^+;\tau)=1,\quad L_2(0^+;\tau)=0,\quad
+ r_{\rm NSS}(0^+)=\beta_0+\beta_1.
+\end{equation}
+These are limits, not evaluation at zero; the API rejects $T=0$.
+For $x\to\infty$, $e^{-x}\to0$ and $0<L_1<1/x\to0$.
+Consequently $L_2\to0$, establishing the exact long limit
+\begin{equation}
+ r_{\rm NSS}(\infty)=\beta_0.
+\end{equation}
+For fixed positive taus the asymptotic expression is
+\begin{equation}
+ r_{\rm NSS}(T)=\beta_0+
+ \frac{(\beta_1+\beta_2)\tau_1+\beta_3\tau_2}{T}
+ +\text{exponentially decaying terms}.
+\end{equation}
+
+Thus $\beta_0$ is the asymptotic level and $\beta_1$ sets the short-limit
+offset. Calling $\beta_1$ a slope coefficient does not mean it equals
+the curve's derivative at zero: the expansions instead give
+\[
+ r_{\rm NSS}'(0^+)
+ =\frac{-\beta_1+\beta_2}{2\tau_1}+\frac{\beta_3}{2\tau_2}.
+\]
+For $x>0$, $e^x>1+x$ implies $L_2=[1-(1+x)e^{-x}]/x>0$.
+Since it vanishes at both ends, $L_2$ has an interior maximum.
+Its beta coefficient contributes a hump or trough according to sign,
+but overlapping factors need not create separate visible humps.
+Taus rescale loading locations and widths; they do not assert market
+turning points. No monotonicity or arbitrage constraints follow from NSS alone.
+
+\subsection{Cancellation and the stable implementation}
+For small $x$, 1 and $e^{-x}$ are near 1, while their difference is of
+order $x$. Subtracting rounded near-equal numbers can give relative error
+of order $\epsilon/x$. Eventually $e^{-x}$ rounds to 1 and the naive
+numerator becomes zero. Even stable $L_1$ followed by subtraction of
+$e^{-x}$ can lose the small $L_2\sim x/2$.
+
+At \texttt{curves.py:29--42}, $x<10^{-3}$ selects separate Taylor
+polynomials through $x^5$ for both loadings, with $O(x^6)$ absolute
+truncation error. The next coefficients are $1/5040$ and $-1/840$;
+near the threshold their term magnitudes are about $2\,10^{-22}$
+and $1.2\,10^{-21}$, below ordinary rounding at the loading scales.
+These are error estimates, not exact equality of polynomial and loading.
+Otherwise $L_1=-\operatorname{expm1}(-x)/x$ and $L_2=L_1-e^{-x}$.
+The computational switch can produce rounding-level discrepancies;
+the underlying mathematical functions are continuous.
+Underflow of positive $T/\tau$ uses limiting polynomial values;
+an overflowing ratio uses limiting zero loadings.
+
+Independent checks used
+$\theta=(0.04,-0.025,0.03,-0.012,1.4,6.5)$, whose short limit is 0.015.
+The reference used the original exponential expression at 90-digit
+decimal precision, then binary64 conversion. All outputs were finite:
+\begin{center}\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$T$ (years) & Engine decimal rate & Engine minus reference\\
+\midrule
+$10^{-24}$ & 0.014999999999999999 & 0\\
+$10^{-18}$ & 0.014999999999999999 & 0\\
+$10^{-12}$ & 0.015000000000018719 & $-1.735\,10^{-18}$\\
+$10^{-8}$ & 0.015000000187197802 & 0\\
+0.000999 & 0.015018693943217502 & 0\\
+0.001 & 0.015018712648743639 & 0\\
+0.001001 & 0.015018731354255518 & 0\\
+\bottomrule
+\end{tabular}
+\end{center}
+Zero means equal binary64 values, not zero error against exact arithmetic.
+Isolating $L_2(T;1)$ avoids a nonzero curve level hiding loading error:
+\begin{center}\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$T$ & Engine $L_2(T;1)$ & Relative reference error\\
+\midrule
+$10^{-24}$ & $4.9999999999999996\,10^{-25}$ & 0\\
+$10^{-18}$ & $5.0000000000000004\,10^{-19}$ & 0\\
+$10^{-12}$ & $4.9999999999966667\,10^{-13}$ & 0\\
+$10^{-8}$ & $4.9999999666666670\,10^{-9}$ & 0\\
+0.000999 & 0.00049916745759218161 & 0\\
+0.001 & 0.00049966679163315764 & $-3.656\,10^{-13}$\\
+0.001001 & 0.00050016612500880520 & $+4.465\,10^{-13}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Isolating all three nonconstant columns on the ten-point small-maturity
+set in Appendix~\ref{sec:scripts}, including both taus' switch regions,
+gave maximum relative errors $2.222669457375284\,10^{-16}$ for $L_1(T;1)$
+and $4.465429311674831\,10^{-13}$ for each $L_2$ column.
+Naive binary64 $(1-\exp(-T))/T$, by contrast, gave zero at $10^{-24}$
+and $10^{-18}$, and 0.9999778782798785 at $10^{-12}$.
+
+Long-maturity values approach $\beta_0=0.04$:
+\begin{center}\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$T$ (years) & Engine rate & Rate minus $\beta_0$\\
+\midrule
+100 & 0.03929000266119859 & $-7.099973388014075\,10^{-4}$\\
+$10^4$ & 0.039992900000000005 & $-7.099999999995998\,10^{-6}$\\
+$10^8$ & 0.03999999929 & $-7.100000032345122\,10^{-10}$\\
+$10^{12}$ & 0.039999999999929 & $-7.099876242477876\,10^{-14}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+The asymptotic numerator is
+$(\beta_1+\beta_2)\tau_1+\beta_3\tau_2=-0.071$, explaining
+the approximately $-0.071/T$ deviations.
+
+\section{NSS calibration and independent synthetic fit}
+For observed pairs $(T_i,r_i^{\rm obs})$, define
+\begin{equation}
+ e_i(\theta)=r_i^{\rm obs}-r_{\rm NSS}(T_i;\theta),\qquad
+ \min_\theta\sum_{i=1}^{n}e_i(\theta)^2.
+\end{equation}
+The implemented search has $\tau_1,\tau_2\in[0.01,100]$ years and
+unbounded betas. Observations have equal weight, including repeated tenors.
+At least six distinct positive maturities are required. The exact definitions are
+\begin{equation}
+ {\rm RMSE}=\sqrt{\frac1n\sum_i e_i^2},\qquad
+ {\rm RMSE}_{\bp}=10{,}000\,{\rm RMSE}.
+\end{equation}
+Residuals and RMSE are decimal rates; the objective has squared decimal-rate
+units. Scaling optimization residuals by 10,000 multiplies the squared
+objective by $10^8$ without changing its mathematical minimizers.
+SciPy's linear-loss cost has an additional constant $1/2$, also immaterial
+to the minimizers.
+
+At fixed taus, linear least squares initializes betas. Joint fitting is
+nonlinear because taus enter exponential arguments.
+At \texttt{curves.py:139--214}, the six deterministic starting pairs are
+$(0.5,2)$, $(1,5)$, $(2,10)$, $(5,1)$, $(10,3)$, $(3,15)$ years.
+The optimizer uses Jacobian-based scaling, tolerances $10^{-10}$, and
+\texttt{max\_nfev=3000} per run.
+Only successful, finite, bounded candidates with finite squared residual
+sums are eligible. The lowest unscaled sum wins; exact ties retain the
+earlier start. Residual signs and reported RMSE agree with the definitions.
+
+The installed SciPy signature confirms the default Jacobian
+\texttt{jac='2-point'}. A one-sided difference
+$[e(\theta+\delta u)-e(\theta)]/\delta$, for parameter-coordinate unit vector
+$u$, approximates that Jacobian column with $O(\delta)$ truncation error
+for smooth residuals, plus cancellation error. This is separate from
+analytical bond derivatives. Reported \texttt{nfev} describes the selected
+run and excludes extra numerical-Jacobian residual calls; it is not the
+total work over starts.
+
+Multiple starts reduce dependence on one local solution but do not prove
+global optimality. Excellent curve agreement does not imply unique
+six-parameter identification. If $\beta_1=\beta_2=\beta_3=0$, both taus
+are unidentifiable from the constant curve. If $\tau_1=\tau_2$, only
+$\beta_2+\beta_3$ multiplies their shared loading. Nearby degeneracies
+and limited tenor coverage can cause weak identification.
+
+\subsection{Independent noiseless observations}
+The 40 maturities were
+$T_i=0.05(40/0.05)^{(i-1)/39}$ years, $i=1,\ldots,40$, generated by
+\texttt{np.geomspace}. The known vector was
+$(0.04,-0.025,0.03,-0.012,1.4,6.5)$.
+Observed rates came from the independent 90-digit exponential formula,
+then binary64 conversion; the engine did not generate them.
+Noiseless means no added observation noise, with representation rounding
+still present. Public \texttt{fit\_nss} fitted these observations.
+A further 1,001-point geometric grid in the same range tested between-node
+curve agreement.
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Metric & Actual result\\
+\midrule
+Maximum absolute observation rate error & $6.938893903907228\,10^{-18}$\\
+Independently recomputed RMSE & $3.291406376790657\,10^{-18}$\\
+API RMSE & $3.291406376790657\,10^{-18}$\\
+RMSE in basis points & $3.291406376790657\,10^{-14}$\\
+Maximum grid rate error (1,001 points) & $1.387778780781446\,10^{-17}$\\
+Maximum residual-vector discrepancy & 0\\
+Successful starts / attempted & 6 / 6\\
+Selected optimizer status / evaluations & 3 / 9\\
+\bottomrule
+\end{tabular}
+\end{center}
+The fitted parameters were:
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Parameter & Fitted value\\
+\midrule
+$\beta_0$ & 0.039999999999999966\\
+$\beta_1$ & -0.024999999999999967\\
+$\beta_2$ & 0.030000000000000134\\
+$\beta_3$ & -0.011999999999999962\\
+$\tau_1$ (years) & 1.4000000000000024\\
+$\tau_2$ (years) & 6.499999999999933\\
+\bottomrule
+\end{tabular}
+\end{center}
+Parameter proximity happened in this run; exact recovery was not required.
+This verifies sampled curve agreement, not a global optimum or
+extrapolation guarantee.
+
+\section{Continuous-zero pricing and parallel shock monotonicity}
+\subsection{Discount factors and the separate time convention}
+Let $r(t_i)$ be the continuous annual decimal zero rate for payment time
+$t_i$. Continuous compounding gives the maturity-specific accumulation
+factor $\exp(r(t_i)t_i)$; inversion yields the exact discount factor
+\begin{equation}
+ DF(t_i)=e^{-r(t_i)t_i},\qquad
+ P_{\rm zero}=\sum_i CF_i e^{-r(t_i)t_i}=\sum_i V_i.
+\end{equation}
+Here $V_i=CF_iDF(t_i)$ is the zero-discounted currency PV. A zero rate
+discounts its maturity's whole horizon; it is not an instantaneous forward rate.
+At \texttt{risk.py:115--146}, the time is
+\begin{equation}
+ t_i=\frac{\operatorname{days}(\text{payment}_i-d_s)}{365.0}.
+\end{equation}
+This counts leap days but always divides by 365, separately from
+coupon-based $T_i=q_i/m$. Annual rate times years makes the exponent
+dimensionless. The routine uses strictly future payments, adds redemption
+at maturity, and returns dirty currency price without subtracting accrual.
+It never invokes YTM discounting.
+
+A flat continuous rate numerically equal to $y$ need not give the YTM
+price. With common times, conversion $r=m\log(1+y/m)$ would align the
+discount factors; the project's different time conventions also preclude
+automatic price equality.
+
+\subsection{Independent flat-curve example}
+For settlement 1 April 2024, maturity 1 July 2025, $F=100$, $c=0.06$,
+$m=2$, and continuous zero rate 0.045:
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Payment & Calendar days & $t_i$ (years) & $CF_i$\\
+\midrule
+2024-07-01 & 91 & $91/365$ & 3\\
+2025-01-01 & 275 & $275/365$ & 3\\
+2025-07-01 & 456 & $456/365$ & 103\\
+\bottomrule
+\end{tabular}
+\end{center}
+Explicit summation of
+\[
+ 3e^{-0.045(91/365)}+3e^{-0.045(275/365)}+103e^{-0.045(456/365)}
+\]
+gave 103.23571061465249. The engine returned the same value, with a
+computed difference of 0.0. Dates and cash flows were specified independently.
+A constant NSS curve represented the engine input; the reference did
+not use the curve-pricing routine.
+
+\subsection{Analytical parallel shock monotonicity}
+For a parallel decimal zero-rate shock $s$, fixed times and cash flows give
+\begin{equation}
+ P(s)=\sum_i CF_i e^{-[r(t_i)+s]t_i},\qquad
+ \frac{dP}{ds}=-\sum_i t_iCF_i e^{-[r(t_i)+s]t_i}.
+\end{equation}
+All terms before the minus sign are nonnegative: $t_i>0$, $CF_i\geq0$,
+and exponentials are positive. Redemption ensures one strictly positive
+term, even for a zero-coupon bond. Therefore $dP/ds<0$ throughout the
+valid real domain. This exact result proves that positive parallel shocks
+lower price and negative ones raise it, regardless of the original rate sign.
+
+The risk CLI agrees: base 98.69995920 becomes 94.58065268 under
+$+25\bp$ and 103.07256709 under $-25\bp$.
+The asymmetric price changes reflect nonlinearity.
+Steepener and flattener signs are exposure-dependent and do not follow
+from this parallel-shock proof.
+
+\section{Piecewise-linear shocks}
+Let $a_1<\cdots<a_L$ be positive anchor maturities and $z_\ell$ their
+basis-point shifts. Set decimal shifts $d_\ell=10^{-4}z_\ell$. Then
+\begin{equation}
+ s(T)=
+ \begin{cases}
+ d_1,&0<T\leq a_1,\\
+ \dfrac{a_{\ell+1}-T}{a_{\ell+1}-a_\ell}d_\ell+
+ \dfrac{T-a_\ell}{a_{\ell+1}-a_\ell}d_{\ell+1},
+       &a_\ell\leq T\leq a_{\ell+1},\\
+ d_L,&T\geq a_L.
+ \end{cases}
+\end{equation}
+For $L=1$ the shock is constant. Substitution at each interval endpoint
+gives its anchor shift exactly. Adjacent formulas have matching limits,
+proving continuity at every anchor; slopes may change. Tail slopes are
+zero. Interpolation weights are dimensionless and sum to one, so $s(T)$
+retains decimal rate units.
+
+The \texttt{np.interp} implementation at \texttt{risk.py:160--180}
+copies inputs and converts basis points once.
+Defaults at lines 183 and 195 are $(-10,0,10)\bp$ for steepening and
+$(10,0,-10)\bp$ for flattening, at $(2,10,30)$ years. These are illustrative
+scenario definitions, not unique universal market definitions.
+
+Numerical checks also used custom shocks $(-10,0,20)\bp$:
+\begin{center}\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$T$ (years) & Custom (bp) & Steepener (bp) & Flattener (bp)\\
+\midrule
+0.01 & -10 & -10 & 10\\
+2 & -10 & -10 & 10\\
+6 & -5 & -5 & 5\\
+10 & 0 & 0 & 0\\
+20 & 10 & 5 & -5\\
+30 & 20 & 10 & -10\\
+100 & 20 & 10 & -10\\
+\bottomrule
+\end{tabular}
+\end{center}
+Anchors, midpoints, and tails agree with independent linear formulas.
+For $\eta=10^{-8}$ years, custom one-sided decimal-rate changes were:
+\begin{center}\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+Anchor $a$ & $s(a-\eta)-s(a)$ & $s(a+\eta)-s(a)$\\
+\midrule
+2 & 0 & $+1.249999886585029\,10^{-12}$\\
+10 & $-1.250000103425464\,10^{-12}$ & $+1.000000082740371\,10^{-12}$\\
+30 & $-9.999999960041972\,10^{-13}$ & 0\\
+\bottomrule
+\end{tabular}
+\end{center}
+These are neighbouring slopes times $\eta$, consistent with continuity.
+
+\section{Key-rate basis and partition of unity}
+Take ordered keys $0<k_1<\cdots<k_J$. For $J\geq2$, reconstruct the
+endpoint basis functions:
+\begin{align}
+ b_1(T)&=\begin{cases}
+ 1,&0<T\leq k_1,\\
+ (k_2-T)/(k_2-k_1),&k_1<T<k_2,\\
+ 0,&T\geq k_2,
+ \end{cases}\\
+ b_J(T)&=\begin{cases}
+ 0,&T\leq k_{J-1},\\
+ (T-k_{J-1})/(k_J-k_{J-1}),&k_{J-1}<T<k_J,\\
+ 1,&T\geq k_J.
+ \end{cases}
+\end{align}
+For $1<j<J$,
+\begin{equation}
+ b_j(T)=\begin{cases}
+ (T-k_{j-1})/(k_j-k_{j-1}),&k_{j-1}<T\leq k_j,\\
+ (k_{j+1}-T)/(k_{j+1}-k_j),&k_j<T<k_{j+1},\\
+ 0,&\text{otherwise}.
+ \end{cases}
+\end{equation}
+For a single key, $b_1(T)=1$ everywhere.
+The functions are continuous, dimensionless, and lie in $[0,1]$.
+Substitution proves $b_j(k_j)=1$ and $b_j(k_\ell)=0$ for $\ell\ne j$.
+
+\subsection{Piecewise proof of partition of unity}
+There are four exhaustive kinds of positive maturity.
+For $0<T<k_1$, only $b_1$ is nonzero and equals 1.
+At $T=k_\ell$, only $b_\ell$ is nonzero and equals 1.
+Between adjacent keys $k_\ell<T<k_{\ell+1}$, only the two neighbouring
+bases are nonzero, and
+\begin{equation}
+ b_\ell(T)+b_{\ell+1}(T)
+ =\frac{k_{\ell+1}-T}{k_{\ell+1}-k_\ell}
+ +\frac{T-k_\ell}{k_{\ell+1}-k_\ell}=1.
+\end{equation}
+For $T>k_J$, only $b_J$ is nonzero and equals 1.
+A single key satisfies the same result by definition.
+Consequently the exact identity
+\begin{equation}\label{eq:partition}
+ \boxed{\sum_{j=1}^{J}b_j(T)=1\quad\text{for every }T>0}
+\end{equation}
+holds, including both tails.
+The source at \texttt{risk.py:218--234} interpolates each identity-matrix
+row over keys with constant endpoint tails, reproducing these definitions.
+
+\subsection{Dense independent numerical check}
+The public \texttt{key\_rate\_basis} was evaluated for $(2,5,10,30)$
+on the sorted unique union of 100,001 linearly spaced maturities from
+0.01 to 100, all four keys, and midpoints $(3.5,7.5,20)$.
+The union contained 100,008 points. Basic NumPy reductions checked the
+entire matrix. A separate piecewise construction using comparisons and
+linear formulas, without \texttt{np.interp}, provided a reference.
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Check & Actual result\\
+\midrule
+$\max_T|\sum_j b_j(T)-1|$ & 0.0\\
+Minimum / maximum weight & 0.0 / 1.0\\
+Maximum difference from independent basis & $1.110223024625157\,10^{-16}$\\
+Basis matrix at keys & Exactly the $4\times4$ identity\\
+\bottomrule
+\end{tabular}
+\end{center}
+This covers below 2Y, all intervals, and beyond 30Y.
+Zero error is an observed binary64 result on this grid; the proof
+establishes the identity for all positive maturities.
+
+\section{Key-rate DV01, parallel DV01, and reconciliation}
+\subsection{Full repricing and individual checks}
+For $h=10^{-4}$, define $r_j^\pm(T)=r(T)\pm h b_j(T)$.
+If $P_j^\pm$ are the corresponding fully repriced dirty prices, then
+\begin{equation}
+ {\rm KRDV01}_j=\frac{P_j^- -P_j^+}{2}.
+\end{equation}
+Nonnegative weights and positive cash flows give nonnegative down-minus-up
+sensitivity; a key with no exposure can give zero.
+The code at \texttt{risk.py:237--256} passes plus/minus identity-row
+shocks into the basis-point factory, converting to $h$ exactly once.
+
+The independent risk bond used settlement 15 April 2025, maturity
+15 January 2055, $F=100$, $c=0.04$, $m=2$.
+All 60 dates and cash flows were explicitly constructed.
+First and last times were 0.2493150684931507 and
+29.77260273972603 years. Base rates were scalar evaluations of the
+public fit to the CSV, explicitly interpreted as continuous zeros.
+The calibrated curve is the input to this risk check; no risk method
+generated reference prices. Independent basis weights and explicit
+exponential sums produced all shocked prices. Independent and engine
+base prices were both 98.69995919854456.
+\begin{center}\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+Key (years) & Engine KRDV01 & Independent repricing & Difference\\
+\midrule
+2 & 0.002369064438994428 & 0.002369064438994428 & 0\\
+5 & 0.007200603041120246 & 0.007200603041120246 & 0\\
+10 & 0.039682235777171115 & 0.039682235777171115 & 0\\
+30 & 0.120474467420841340 & 0.120474467420841340 & 0\\
+\bottomrule
+\end{tabular}
+\end{center}
+Units are currency for $F=100$ and a one-basis-point basis move.
+
+\subsection{First-order additivity and finite-bump nonadditivity}
+For a decimal key amplitude $u_j$, differentiating at zero shock gives
+\[
+ -\left.\frac{\partial P}{\partial u_j}\right|_0
+ =\sum_i V_i t_i b_j(t_i).
+\]
+Summation over keys and (\ref{eq:partition}) establish the exact identity
+\begin{equation}
+ \sum_j\left(-\left.\frac{\partial P}{\partial u_j}\right|_0\right)
+ =\sum_i V_i t_i=-\left.\frac{dP}{ds}\right|_0.
+\end{equation}
+Multiplying by $h$ proves exact additivity of the first-order DV01
+approximations.
+
+Full-repricing parallel DV01, at \texttt{risk.py:259--267}, is
+\begin{equation}
+ {\rm DV01}_{\parallel}=\frac{P(r-h)-P(r+h)}2.
+\end{equation}
+Here $P(r\pm h)$ prices all payments under the uniformly shifted curve.
+Define $\sinh z=(e^z-e^{-z})/2$. Exact real-arithmetic identities are
+\begin{align}
+ {\rm KRDV01}_j&=\sum_i V_i\sinh(h t_i b_j(t_i)),\\
+ {\rm DV01}_{\parallel}&=\sum_i V_i\sinh(h t_i).
+\end{align}
+For $\Delta=\sum_j{\rm KRDV01}_j-{\rm DV01}_{\parallel}$, expansion
+$\sinh z=z+z^3/6+z^5/120+\cdots$ yields
+\begin{equation}\label{eq:cubic}
+ \Delta=\frac{h^3}{6}\sum_i V_i t_i^3
+       \left(\sum_j b_j(t_i)^3-1\right)+O(h^5).
+\end{equation}
+The linear term cancels by partition of unity. Even powers cancel in
+central repricing. The generic leading discrepancy is therefore
+$O(h^3)$ in price units, or $O(h^2)$ relative to nonzero parallel DV01
+of order $h$.
+
+Since weights lie in $[0,1]$ and sum to one,
+$\sum_j b_j^p\leq1$ for every integer $p>1$.
+All coefficients in the positive-$z$ series for $\sinh z$ are positive,
+so $\Delta\leq0$. It is strictly negative if a positive-PV payment is
+split across two keys; it can be zero when every payment has a single
+weight equal to one. First-order additivity does not imply finite-bump equality.
+
+Writing $\Delta_3$ for the displayed cubic term,
+\begin{equation}
+ |\Delta-\Delta_3|\leq
+ \sum_i V_i\frac{(h t_i)^5\cosh(h t_i)}{120},
+ \qquad \cosh z=(e^z+e^{-z})/2.
+\end{equation}
+Each omitted odd-power coefficient contains
+$1-\sum_j b_j^{2p+1}\in[0,1]$, and the remaining $\sinh$ tail is bounded
+by $z^5\cosh z/120$, proving this sufficient bound.
+Similarly $0\leq-\Delta\leq\sum_i V_i(h t_i)^3\cosh(h t_i)/6$.
+Floating-point repricing adds rounding beyond these real-arithmetic bounds.
+
+\subsection{Actual reconciliation}
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Quantity & Actual result\\
+\midrule
+Parallel DV01 (engine and independent) & 0.16972640002153838\\
+Sum of KRDV01s (engine and independent) & 0.16972637067812713\\
+$\Delta$ (sum minus parallel) & $-2.9343411256377294\,10^{-8}$\\
+Relative $\Delta/{\rm DV01}_{\parallel}$ & $-1.728865471291066\,10^{-7}$\\
+First-order parallel sensitivity times $h$ & 0.16972622075771868\\
+Derived cubic term $\Delta_3$ & $-2.9343412800122713\,10^{-8}$\\
+Independent $\sinh$ difference & $-2.93434242885617\,10^{-8}$\\
+Fifth-order remainder bound & $7.086922071550366\,10^{-14}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Cubic prediction, exact-form $\sinh$ computation, and repricing agree
+within small truncation and rounding effects.
+The relative difference is a dimensionless ratio of sensitivities,
+not a basis-point rate change. Additional independent bump checks give
+\begin{center}\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$h$ & $\Delta$ from $\sinh$ sums & $\Delta/h^3$\\
+\midrule
+$2\,10^{-4}$ & $-2.3474766955309753\,10^{-7}$ & -29343.458694137185\\
+$10^{-4}$ & $-2.9343424288561700\,10^{-8}$ & -29343.424288561695\\
+$5\,10^{-5}$ & $-3.6679269569158863\,10^{-9}$ & -29343.415655327084\\
+\bottomrule
+\end{tabular}
+\end{center}
+Near constancy of $\Delta/h^3$ supports the cubic leading order.
+These extra bumps were temporary checks, not new API parameters.
+Curve DV01 and YTM DV01 differentiate different rate variables with
+different times and compounding, so their numerical equality is not required.
+
+\section{Dimensional and unit audit}
+\small
+\begin{longtable}{@{}p{0.25\textwidth}p{0.69\textwidth}@{}}
+\toprule
+Quantity or coordinate & Audit finding\\
+\midrule
+\endhead
+Currency and price & $F,C,CF_i,PV_i,V_i,AI$, prices, P\&L, and DV01 are amounts for the supplied face value. Default $F=100$ makes the numerical price a price per 100 face; other face values are not automatically normalized.\\
+Face normalization & Price per 100 is $100P/F$. Scaling face by $\lambda>0$ scales all cash flows, prices, accrual, and DV01 by $\lambda$, while normalized durations and convexity remain unchanged. This follows exactly from linear sums and their ratios.\\
+Decimal rates & $c,y,r,\beta$ use decimals; 0.05 means 5\%. Rate conventions still differ: $y$ is nominal coupon-compounded, zero $r$ is continuous, and generic NSS rates inherit the caller's convention.\\
+Percentages & Displayed percentage number is $100r$; 0.045 is displayed as 4.50\%. Plotting explicitly multiplies rates by 100 and labels the percentage axis.\\
+Percentage points & Moving from 4\% to 5\% is a change of one percentage point, or 0.01 decimal, or 100 bp. It is a 25\% relative increase in the rate, which is a different concept.\\
+Basis points & One bp is $10^{-4}$ decimal; 25 bp is 0.0025. Shock factories multiply bp inputs by $10^{-4}$ once. Returned callables and \texttt{ShockedCurve} use decimal shifts without another conversion.\\
+Coupon periods & $q_i$ is a dimensionless fractional period count; $q_i/m$ is coupon-based time in years. $\alpha$ is a ratio of calendar-day counts, not a rate.\\
+Curve years & NSS $T,\tau$, shock anchors, and keys are years. Risk times use actual days/365, including leap days in the numerator.\\
+Discount factors & $1+y/m$, $(1+y/m)^{-q_i}$, $T/\tau$, and $\exp(-rt)$ have consistent dimensionless bases or arguments.\\
+Durations & Macaulay is PV-weighted coupon-based years. Modified duration is $-P'/P$ for annual decimal YTM and equals Macaulay divided by $1+y/m$.\\
+Convexity & $P''/P$ with respect to annual decimal YTM, conventionally years squared. No $1/2$ belongs inside this definition.\\
+DV01 & Price units for a one-bp move. Central repricing divides the down-minus-up price difference by 2, not by $2h$. Calling it price units per 1 bp specifies the bump, not an unscaled derivative.\\
+RMSE & Decimal-rate RMSE is $\sqrt{\sum e_i^2/n}$; bp RMSE multiplies by 10,000, not by 100.\\
+Relative reconciliation & $\Delta/{\rm DV01}_{\parallel}$ is dimensionless. Converting that ratio to percent is unrelated to converting a rate to bp.\\
+\bottomrule
+\end{longtable}
+\normalsize
+A coordinate change makes hidden scale errors explicit. If $z=100y$ is
+the numerical percentage quote, then $dP/dz=P'/100$ and
+$d^2P/dz^2=P''/10{,}000$. If $u=10{,}000y$ is the numerical bp quote,
+then $dP/du=P'/10{,}000$. The code's derivatives are with respect to
+$y$, and the DV01 bump supplies the $10^{-4}$ conversion explicitly.
+No hidden factor-of-100 or factor-of-10,000 defect was found.
+The conventional year labels for duration and convexity are consistent
+with annual-rate perturbations and the factors of $1/m$; they do not
+authorize substitution of percentage-number changes into decimal formulas.
+
+\section{Existing tests as evidence and source correspondence}
+The complete baseline command, run from the repository root, was
+\begin{verbatim}
+.\.venv\Scripts\python.exe -m pytest -q
+\end{verbatim}
+The actual result was:
+\begin{verbatim}
+234 passed in 4.59s
+\end{verbatim}
+The process completed successfully. This is a current execution result,
+not a README claim.
+
+\small
+\begin{longtable}{@{}p{0.20\textwidth}p{0.36\textwidth}p{0.37\textwidth}@{}}
+\toprule
+Evidence & Inspected coverage & Independent review assessment\\
+\midrule
+\endhead
+\texttt{test\_bonds.py} &
+Par, accrual, calendar boundaries, month ends, leap days, fractional periods,
+zero coupons, annual/semiannual frequency, negative/zero YTM, face scaling,
+scalar precision, invalid inputs, analytics and CLI. &
+Existing derivative tests use engine prices at one step.
+This report additionally derives derivatives and constructs its own
+reference cash flows and price function over seven steps.\\
+\texttt{test\_curves.py} &
+Formula/shape checks, 70-digit short-tenor references, synthetic fits,
+RMSE, deterministic repeats, candidate selection and failure handling,
+plots and CLI. &
+Existing noiseless fits usually generate observations with the model API.
+This review instead generates them from 90-digit independent exponentials
+and also compares a dense between-observation grid.\\
+\texttt{test\_risk.py} &
+Explicit flat-curve prices, leap-day timing, settlement exclusion,
+shock signs and units, interpolation/tails, custom/single keys,
+reconciliation bounds, scaling, immutability, validation, CLI. &
+The tests contain substantive financial checks, not placeholders.
+This review independently proves all-maturity partition of unity,
+checks 100,008 points, and reprices all individual key sensitivities.\\
+\bottomrule
+\end{longtable}
+\normalsize
+
+Source locations refer to the audited revision:
+\small
+\begin{longtable}{@{}p{0.36\textwidth}p{0.58\textwidth}@{}}
+\toprule
+Location & Mathematical correspondence\\
+\midrule
+\endhead
+\texttt{bonds.py:76--136} & Validated bond domain, maturity-anchored schedule, coupon-date exclusion, period accrual, positive discount base.\\
+\texttt{bonds.py:139--217} & Fractional-period PV sum, clean/dirty identity, analytical durations and convexity, central YTM DV01.\\
+\texttt{curves.py:29--93} & NSS loading series, stable evaluation, parameter and maturity domain.\\
+\texttt{curves.py:120--214} & RMSE conversion, observations, deterministic constrained multi-start fit, candidate selection.\\
+\texttt{curves.py:217--246} & Plot converts decimals to labelled percentages; no financial rate conversion.\\
+\texttt{risk.py:71--146} & Additive decimal curve shifts, scenario P\&L, Actual/365 continuous discounting.\\
+\texttt{risk.py:149--215} & Single bp conversion, linear shocks and constant tails, default scenarios, full repricing.\\
+\texttt{risk.py:218--267} & Key basis, key-rate and parallel central DV01.\\
+\texttt{cli.py:18--135} & Invented CSV fit, explicit zero interpretation for risk, illustrative commands and displayed units.\\
+\texttt{\_\_init\_\_.py} & Exports existing bond, NSS, and risk APIs without alternate financial formulas.\\
+\texttt{README.md} & Documented formulas, units, and limitations agree with the reviewed mathematics.\\
+\texttt{pyproject.toml} & Python 3.12+; declared dependencies and argparse-based CLI entry point. No configuration changes made.\\
+\bottomrule
+\end{longtable}
+\normalsize
+The existing tests and the additional checks agree with the derivations.
+Passing tests remain finite evidence, not proofs of universal numerical
+behaviour.
+
+\section{Actual CLI execution record}
+The following commands were executed from the repository root after the
+baseline suite:
+\begin{verbatim}
+.\.venv\Scripts\python.exe -m fixed_income.cli bond
+.\.venv\Scripts\python.exe -m fixed_income.cli curve
+.\.venv\Scripts\python.exe -m fixed_income.cli risk
+.\.venv\Scripts\python.exe -m fixed_income.cli demo
+\end{verbatim}
+All completed. The tables retain their actual displayed numerical
+precision. The \texttt{demo} command reproduced the bond, curve, and
+risk outputs below in that order, with the same numerical results;
+its curve fit is reused for its risk section.
+
+\subsection{Bond command}
+The printed example was explicitly invented. Settlement was 2025-04-15,
+maturity 2030-01-15, face 100.00 currency units, coupon 4.00\%
+(0.040000 decimal), nominal annual YTM 4.50\% (0.045000 decimal),
+frequency 2 payments per year.
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Printed measure & Printed value\\
+\midrule
+Accrued interest (currency) & 0.994475\\
+Dirty price (currency) & 98.871313\\
+Clean price (currency) & 97.876838\\
+Macaulay duration (years) & 4.326727\\
+Modified duration (years) & 4.231518\\
+Convexity (years squared) & 21.110445\\
+DV01 (currency for 1 bp) & 0.041838\\
+\bottomrule
+\end{tabular}
+\end{center}
+The CLI explicitly labels central dirty-price repricing and
+$1\bp=0.0001$ decimal YTM.
+
+\subsection{Curve command and inspected CSV}
+The actual CSV observations were:
+\begin{center}\small
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+Maturity (years) & Rate (decimal) && Maturity (years) & Rate (decimal)\\
+\midrule
+0.25 & 0.0420 && 5 & 0.0370\\
+0.5 & 0.0410 && 7 & 0.0380\\
+1 & 0.0390 && 10 & 0.0390\\
+2 & 0.0370 && 20 & 0.0410\\
+3 & 0.0365 && 30 & 0.0415\\
+\bottomrule
+\end{tabular}
+\end{center}
+These are invented observations, not market data. Their fit does not
+bootstrap a zero curve. The command printed:
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Measure & Printed value\\
+\midrule
+$\beta_0$ (decimal rate) & 0.0395973473\\
+$\beta_1$ (decimal rate) & 0.0040652482\\
+$\beta_2$ (decimal rate) & -0.0190419619\\
+$\beta_3$ (decimal rate) & 0.0091397288\\
+$\tau_1$ (years) & 1.6287979110\\
+$\tau_2$ (years) & 16.1937672075\\
+Optimizer success & True\\
+Optimizer status & 2\\
+Selected-start function evaluations & 17\\
+Successful starts & 6/6\\
+RMSE (decimal rate) & 0.0000782762\\
+RMSE (basis points) & 0.782762\\
+\bottomrule
+\end{tabular}
+\end{center}
+The termination message stated that the \texttt{ftol} termination
+condition was satisfied. The plot path printed was
+\texttt{outputs\textbackslash yield\_curve.png}.
+Curve and demo wrote the existing gitignored plot location.
+Rounded display values need not retain exact arithmetic conversion
+between their last printed digits; the underlying RMSE uses one
+factor of 10,000.
+
+\subsection{Risk command}
+The printed risk example used settlement 2025-04-15, maturity 2055-01-15,
+face 100.00, coupon 4.00\% annually, and semiannual payments.
+It explicitly interpreted fitted rates as continuous zeros for this
+educational example, with Actual/365 times.
+All price, P\&L, and DV01 values below are currency for that face value:
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Scenario & Base & Shocked & P\&L\\
+\midrule
+Parallel $+25\bp$ & 98.69995920 & 94.58065268 & -4.11930652\\
+Parallel $-25\bp$ & 98.69995920 & 103.07256709 & +4.37260789\\
+Steepener $-10/0/+10\bp$ & 98.69995920 & 97.57938095 & -1.12057825\\
+Flattener $+10/0/-10\bp$ & 98.69995920 & 99.85176589 & +1.15180669\\
+\bottomrule
+\end{tabular}
+\end{center}
+Shape anchors were 2/10/30 years. Scenario P\&L is exactly defined as
+shocked minus base price; subtracting the rounded displayed prices can
+differ in the last digit from the displayed full-precision calculation.
+\begin{center}\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+Sensitivity & Printed value\\
+\midrule
+2Y KRDV01 & 0.0023690644\\
+5Y KRDV01 & 0.0072006030\\
+10Y KRDV01 & 0.0396822358\\
+30Y KRDV01 & 0.1204744674\\
+Parallel DV01 & 0.1697264000\\
+Sum of KRDV01 & 0.1697263707\\
+Reconciliation (sum minus parallel) & $-2.934341125638\,10^{-8}$\\
+\bottomrule
+\end{tabular}
+\end{center}
+The printed DV01 definition was $[P(-1\bp)-P(+1\bp)]/2$, with one bp
+equal to 0.0001 decimal zero rate.
+
+\section{Verification conclusions and document build}
+No mathematical defect was found in the reviewed bond pricing, accrual,
+duration, convexity, DV01, NSS loading/calibration definitions,
+continuous-zero pricing, scenario interpolation, or key-rate basis and
+reconciliation formulas. No unresolved discrepancy requires a source
+correction. Exact identities have been derived under explicit assumptions;
+sample numerical agreement is presented as supporting evidence.
+
+The principal approximation effects are central derivative truncation
+of order $h^2$, finite-bump DV01 corrections of order $h^3$,
+NSS small-argument polynomial remainders of order $x^6$, floating-point
+rounding, and numerical optimization. First-order key-rate additivity
+coexists with a generally nonzero cubic full-repricing discrepancy.
+No missing factor of 100 or 10,000 was identified.
+
+The limitations are those of the stated conventions and finite numerical
+evidence: regular coupon schedules, prescribed accrual and time bases,
+caller-assigned rate meaning, no calibration uniqueness/global-minimum
+guarantee, and no verification of every extreme floating-point input.
+These limitations do not contradict the validated mathematical identities.
+
+\BuildResult
+The PowerShell build commands are:
+\begingroup\small
+\begin{verbatim}
+latexmk --version
+Push-Location .\paper
+latexmk -pdf -interaction=nonstopmode -halt-on-error verification_report.tex
+Pop-Location
+\end{verbatim}
+\endgroup
+The source report is \texttt{paper/verification\_report.tex}.
+Only this source and a minimal paper-specific ignore file are intended
+for the documentation commit; PDF and LaTeX auxiliary outputs are excluded.
+
+\appendix
+\section{Independent stdin-fed numerical scripts}\label{sec:scripts}
+These are the executed review scripts. Run each from the repository root
+inside the following PowerShell wrapper:
+\begin{verbatim}
+@'
+# Paste one Python script below here.
+'@ | .\.venv\Scripts\python.exe -
+\end{verbatim}
+The scripts import only standard-library modules, NumPy, and public
+\texttt{fixed\_income} APIs. Reference calculations do not call the
+analytics method being checked. Display-only decimal truncation in printed
+tables is separate from the full binary64 values used in calculations.
+
+\subsection{Bond cash flows, derivatives, DV01, and coupon boundaries}
+\begingroup\scriptsize
+\begin{verbatim}
+from datetime import date
+from math import fsum
+import numpy as np
+from fixed_income import FixedRateBond
+np.set_printoptions(precision=16)
+s = date(2025,4,15)
+dates = [date(2025,7,15)] + [
+    date(yr,mo,15) for yr in range(2026,2030) for mo in (1,7)
+] + [date(2030,1,15)]
+alpha = (s-date(2025,1,15)).days / (
+    date(2025,7,15)-date(2025,1,15)).days
+q = 1-alpha+np.arange(len(dates))
+cf = np.full(len(dates),2.0)
+cf[-1] += 100
+def price(y):
+    return fsum(float(a)*(1+float(y)/2)**(-float(b))
+                for a,b in zip(cf,q))
+y = 0.045
+p = price(y)
+pv = cf*(1+y/2)**(-q)
+d1 = -fsum(float(v*t/(2*(1+y/2))) for v,t in zip(pv,q))
+d2 = fsum(float(v*t*(t+1)/(4*(1+y/2)**2))
+           for v,t in zip(pv,q))
+dm = -d1/p
+cv = d2/p
+b = FixedRateBond(s,dates[-1],0.04)
+assert b.coupon_schedule() == tuple(dates)
+print("alpha,w,AI",alpha,1-alpha,2*alpha)
+print("count,q_first,q_last",len(dates),q[0],q[-1])
+print("independent dirty,clean",p,p-2*alpha)
+print("engine dirty,clean",b.dirty_price(y),b.clean_price(y))
+print("independent Mac,Mod,dP,d2P,conv",dm*(1+y/2),dm,d1,d2,cv)
+print("engine Mac,Mod,conv",b.macaulay_duration(y),b.modified_duration(y),b.convexity(y))
+print("h,fd_mod,mod_error,fd_second,fd_conv,conv_error")
+for h in (1e-2,1e-3,1e-4,1e-5,1e-6,1e-7,1e-8):
+    pp,pm = price(y+h),price(y-h)
+    fd = -(pp-pm)/(2*h*p)
+    sec = (pp-2*p+pm)/h**2
+    print(f"{h:.0e},{fd:.15g},{fd-dm:+.9e},{sec:.15g},{sec/p:.15g},{sec/p-cv:+.9e}")
+h=1e-4
+direct=(price(y-h)-price(y+h))/2
+approx=p*dm*h
+print("DV01 engine,direct,approx,direct_minus_approx",b.dv01(y),direct,approx,direct-approx)
+print("Pminus,Pplus",price(y-h),price(y+h))
+print("par m,independent,engine")
+for m in (1,2):
+    n=5*m
+    ref=fsum((100*0.04/m+(100 if i==n else 0)) /
+             (1+0.04/m)**i for i in range(1,n+1))
+    obj=FixedRateBond(date(2025,1,15),date(2030,1,15),0.04,frequency=m)
+    print(m,ref,obj.dirty_price(0.04))
+print("boundary settlement,previous,next,n,AI,q_first")
+for day in (14,15,16):
+    obj=FixedRateBond(date(2025,7,day),date(2027,1,15),0.04)
+    a=(obj.settlement_date-obj.previous_coupon_date).days/(
+        obj.next_coupon_date-obj.previous_coupon_date).days
+    print(obj.settlement_date,obj.previous_coupon_date,obj.next_coupon_date,
+          len(obj.coupon_schedule()),obj.accrued_interest(),1-a)
+\end{verbatim}
+\endgroup
+\subsection{NSS high-precision loadings and independent synthetic calibration}
+\begingroup\scriptsize
+\begin{verbatim}
+from decimal import Decimal, localcontext
+from math import exp
+import numpy as np
+from fixed_income import NSSCurve,fit_nss
+theta=(0.04,-0.025,0.03,-0.012,1.4,6.5)
+def reference(t,parameters=theta):
+    with localcontext() as ctx:
+        ctx.prec=90
+        T=Decimal(str(float(t)))
+        b0,b1,b2,b3,t1,t2=map(lambda x:Decimal(str(x)),parameters)
+        x1,x2=T/t1,T/t2
+        e1,e2=(-x1).exp(),(-x2).exp()
+        a1,a2=(1-e1)/x1,(1-e2)/x2
+        return float(b0+b1*a1+b2*(a1-e1)+b3*(a2-e2))
+known=NSSCurve(*theta)
+print("T,engine_rate,reference_error,isolated_L2,relative_L2_error,naive_L1")
+for t in (1e-24,1e-18,1e-12,1e-8,0.000999,0.001,0.001001):
+    actual=known.yield_rate(t)
+    p=(0,0,1,0,1,2)
+    iso=NSSCurve(*p).yield_rate(t)
+    ref=reference(t,p)
+    print(f"{t:.9g},{actual:.17g},{actual-reference(t):+.3e},"
+          f"{iso:.17g},{(iso-ref)/ref:+.3e},{(1-exp(-t))/t:.17g}")
+print("long T,rate,rate_minus_beta0")
+for t in (100,1e4,1e8,1e12):
+    r=known.yield_rate(t)
+    print(t,repr(r),repr(r-theta[0]))
+t=np.geomspace(0.05,40.0,40)
+rates=np.array([reference(v) for v in t])
+fit=fit_nss(t,rates)
+res=rates-fit.curve.yield_rate(t)
+grid=np.geomspace(0.05,40.0,1001)
+truth=np.array([reference(v) for v in grid])
+error=fit.curve.yield_rate(grid)-truth
+print("known parameters",theta)
+print("fitted",fit.curve)
+print("max_abs_observed,rmse_independent,rmse_API,rmse_bps",
+      max(abs(res)),np.sqrt(np.mean(res**2)),fit.rmse,fit.rmse_bps)
+print("grid max_abs",max(abs(error)))
+print("success,status,nfev,starts",fit.success,fit.status,fit.nfev,
+      fit.starts_succeeded,fit.starts_attempted)
+print("residual_API_max_error",max(abs(fit.residuals-res)))
+print("isolated loading maximum relative errors")
+tiny=np.array([1e-24,1e-18,1e-12,1e-8,0.000999,
+               0.001,0.001001,0.001998,0.002,0.002002])
+for index in (1,2,3):
+    p=[0,0,0,0,1,2]
+    p[index]=1
+    ref=np.array([reference(v,p) for v in tiny])
+    act=NSSCurve(*p).yield_rate(tiny)
+    print(index,float(np.max(np.abs((act-ref)/ref))))
+\end{verbatim}
+\endgroup
+\subsection{Zero prices, shocks, basis, and full-repricing reconciliation}
+\begingroup\scriptsize
+\begin{verbatim}
+from datetime import date
+from math import exp,fsum,sinh,cosh
+from pathlib import Path
+import numpy as np
+from fixed_income import (
+    FixedRateBond,NSSCurve,fit_nss,curve_price,key_rate_basis,
+    key_rate_dv01,parallel_dv01,piecewise_linear_shock,
+    steepener_shock,flattener_shock,
+)
+s=date(2024,4,1)
+dates=[date(2024,7,1),date(2025,1,1),date(2025,7,1)]
+cf=np.array([3.0,3.0,103.0])
+t=np.array([(v-s).days/365 for v in dates])
+flat=fsum(float(a)*exp(-0.045*float(v)) for a,v in zip(cf,t))
+obj=FixedRateBond(s,dates[-1],0.06)
+actual=curve_price(obj,NSSCurve(0.045,0,0,0,1,5))
+print("flat days,t,CF",(np.array(t)*365).round().astype(int),t,cf)
+print("flat price reference,engine,difference",flat,actual,actual-flat)
+keys=np.array([2.0,5.0,10.0,30.0])
+def basis(t):
+    t=np.asarray(t)
+    out=np.zeros(t.shape+(len(keys),))
+    out[...,0]=np.where(t<=keys[0],1,0)
+    out[...,-1]=np.where(t>=keys[-1],1,0)
+    for j,(left,right) in enumerate(zip(keys[:-1],keys[1:])):
+        mask=(t>left)&(t<right)
+        out[...,j]+=np.where(mask,(right-t)/(right-left),0)
+        out[...,j+1]+=np.where(mask,(t-left)/(right-left),0)
+    for j,k in enumerate(keys[1:-1],1):
+        out[...,j]+=np.where(t==k,1,0)
+    return out
+grid=np.unique(np.r_[np.linspace(0.01,100,100001),keys,[3.5,7.5,20]])
+weights=key_rate_basis(grid)
+print("basis n,max_partition,min,max,max_reference_error",
+      grid.size,np.max(np.abs(weights.sum(axis=1)-1)),
+      weights.min(),weights.max(),np.max(np.abs(weights-basis(grid))))
+print("basis_at_keys",key_rate_basis(keys).tolist())
+anchors=[2.,10.,30.]
+shifts=[-10.,0.,20.]
+shock=piecewise_linear_shock(anchors,shifts)
+print("T,generic_bp,steepener_bp,flattener_bp")
+for v in (0.01,2,6,10,20,30,100):
+    print(v,shock(v)*1e4,steepener_shock()(v)*1e4,
+          flattener_shock()(v)*1e4)
+eps=1e-8
+print("anchor,left_minus_anchor,right_minus_anchor (decimal)")
+for v in anchors:
+    print(v,shock(v-eps)-shock(v),shock(v+eps)-shock(v))
+source=Path("examples")/"illustrative_curve.csv"
+data=np.genfromtxt(source,delimiter=",",names=True)
+curve=fit_nss(data["maturity_years"],data["rate"]).curve
+s=date(2025,4,15)
+dates=[date(2025,7,15)]+[
+    date(yr,mo,15) for yr in range(2026,2055) for mo in (1,7)
+]+[date(2055,1,15)]
+cf=np.full(len(dates),2.0)
+cf[-1]+=100
+t=np.array([(v-s).days/365 for v in dates])
+rates=np.array([curve.yield_rate(float(v)) for v in t])
+w=basis(t)
+pv=np.array([a*exp(-r*v) for a,r,v in zip(cf,rates,t)])
+def price(shifts):
+    return fsum(float(a)*exp(-float(r+dv)*float(v))
+                for a,r,dv,v in zip(cf,rates,np.broadcast_to(shifts,t.shape),t))
+bond=FixedRateBond(s,dates[-1],0.04)
+assert bond.coupon_schedule()==tuple(dates)
+print("risk count,first_time,last_time,independent_base,engine_base",
+      len(dates),t[0],t[-1],price(0),curve_price(bond,curve))
+h=1e-4
+ind=np.array([(price(-h*w[:,j])-price(h*w[:,j]))/2
+              for j in range(len(keys))])
+implemented=key_rate_dv01(bond,curve)
+print("key,engine,independent,difference")
+for item,v in zip(implemented,ind):
+    print(item.tenor_years,repr(item.dv01),repr(v),repr(item.dv01-v))
+parallel=parallel_dv01(bond,curve)
+total=fsum(item.dv01 for item in implemented)
+pind=(price(-h)-price(h))/2
+cubic=fsum(float(p)*(h*float(v))**3*(fsum(float(a)**3 for a in row)-1)/6
+           for p,v,row in zip(pv,t,w))
+bound=fsum(float(p)*(h*float(v))**5*cosh(h*float(v))/120
+           for p,v in zip(pv,t))
+stable=fsum(float(p)*(fsum(sinh(h*float(v)*float(a)) for a in row)
+                        -sinh(h*float(v))) for p,v,row in zip(pv,t,w))
+print("parallel_API,parallel_independent,sum_API,sum_independent",
+      repr(parallel),repr(pind),repr(total),repr(fsum(ind)))
+print("difference,relative,cubic,stable,fifth_bound",
+      repr(total-parallel),repr((total-parallel)/parallel),
+      repr(cubic),repr(stable),repr(bound))
+print("first_order_parallel",fsum(float(p*v*h) for p,v in zip(pv,t)))
+print("h,stable_difference,difference_over_hcubed")
+for h in (2e-4,1e-4,5e-5):
+    d=fsum(float(p)*(fsum(sinh(h*float(v)*float(a)) for a in row)
+                    -sinh(h*float(v))) for p,v,row in zip(pv,t,w))
+    print(h,repr(d),repr(d/h**3))
+\end{verbatim}
+\endgroup
+\end{document}
