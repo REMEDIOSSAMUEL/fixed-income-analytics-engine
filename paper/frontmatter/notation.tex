@@ -1,0 +1,111 @@
+\chapter*{Notation and abbreviations}
+\addcontentsline{toc}{chapter}{Notation and abbreviations}
+\label{sec:notation}
+% Editorial rule: every new non-obvious mathematical symbol must enter this
+% table and receive a prose definition at first substantive use.
+% Keep abbreviations distinct from mathematical indices and variables.
+The notation distinguishes nominal yield-to-maturity valuation from explicit
+zero-curve discounting. Rates are decimals unless a percentage or basis-point
+display is explicitly stated. Currency amounts refer to the supplied face
+value. Each symbol must also be defined in prose at its first substantive use;
+the final column identifies the intended location.
+\begingroup\small\singlespacing
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}L{0.18\textwidth}L{0.36\textwidth}L{0.18\textwidth}L{0.19\textwidth}@{}}
+\caption{Notation, units and first-use locations}\label{tab:notation}\\
+\toprule
+Symbol & Meaning & Units and convention & First use\\
+\midrule
+\endfirsthead
+\toprule Symbol & Meaning & Units and convention & First use\\ \midrule
+\endhead
+\bottomrule
+\endfoot
+\(F\) & Face and redemption amount & Currency; default 100 & \ref{sec:bond-assumptions}\\
+\(c\) & Annual coupon rate & Decimal & \ref{sec:bond-assumptions}\\
+\(m\) & Coupon frequency & Payments per year; 1 or 2 & \ref{sec:bond-assumptions}\\
+\(C\) & Coupon per payment & Currency & \ref{sec:bond-accrual}\\
+\(\yytm\) & Yield to maturity & Nominal annual decimal; compounded \(m\) times & \ref{sec:bond-assumptions}\\
+\(B\) & \(1+\yytm/m\), accumulation per period & Dimensionless; positive & \ref{sec:bond-assumptions}\\
+\(d_s,d_M\) & Settlement and maturity dates & Calendar dates & \ref{sec:bond-accrual}\\
+\(d_-,d_+\) & Previous/on-settlement and next coupon dates & Calendar dates & \ref{sec:bond-accrual}\\
+\(d_i\) & Date of future payment \(i\) & Calendar date & \ref{sec:ytm-price}\\
+\(\operatorname{days}\) & Elapsed calendar-day count & Days & \ref{sec:bond-accrual}\\
+\(\alpha,w\) & Accrued and remaining fractions of coupon period & Dimensionless; \(w=1-\alpha\) & \ref{sec:bond-accrual}\\
+\(N,i\) & Future payment count and payment index & Integer; \(1\leq i\leq N\) & \ref{sec:ytm-price}\\
+\(q_i\) & Fractional coupon periods to payment & Dimensionless period count & \ref{sec:ytm-price}\\
+\(T_i\) & \(q_i/m\), YTM payment time & Coupon-based years & \ref{sec:ytm-price}\\
+\(CF_i\) & Coupon plus redemption if final payment & Currency & \ref{sec:ytm-price}\\
+\(\mathbf1_{\{i=N\}}\) & Indicator of final payment & Dimensionless; zero or one & \ref{sec:ytm-price}\\
+\(PV_i\) & YTM-discounted cash-flow present value & Currency & \ref{sec:ytm-price}\\
+\(AI\) & Accrued interest & Currency & \ref{sec:bond-accrual}\\
+\(P_{\mathrm{dirty}},P_{\mathrm{clean}}\) & Prices including/excluding accrued interest & Currency & \ref{sec:ytm-price}\\
+\(P(\yytm)\) & Abbreviation for dirty YTM price & Currency & \ref{sec:ytm-price}\\
+\(P',P''\) & First/second YTM derivatives & Currency per decimal yield / yield squared & \ref{sec:duration}, \ref{sec:convexity}\\
+\(D_{\mathrm{Mac}}\) & Macaulay duration & Years, using \(T_i\) & \ref{sec:duration}\\
+\(D_{\mathrm{Mod}}\) & Modified duration, \(-P'/P\) & Conventional years; annual decimal YTM & \ref{sec:duration}\\
+\(\mathcal C\) & Convexity, \(P''/P\) & Conventional years squared & \ref{sec:convexity}\\
+\(h\) & Symmetric perturbation magnitude & Decimal rate; \(10^{-4}\) for DV01 & \ref{sec:ytm-dv01}\\
+\(\delta y\) & Change in annual nominal YTM & Decimal yield & \ref{sec:ytm-dv01}\\
+\(\mathrm{DV01}_{\mathrm{YTM}}\) & Central YTM repricing sensitivity & Currency for 1 bp & \ref{sec:ytm-dv01}\\
+\(O(h^p)\) & Local asymptotic remainder order & Units of expression it completes & \ref{sec:ytm-dv01}, \ref{sec:app-dv01}\\
+\(T\) & Generic curve maturity & Years; positive & \ref{sec:nss-equations}\\
+\(\theta,\widehat\theta\) & NSS parameter vector; selected fit & Mixed rate/year coordinates & \ref{sec:nss-equations}, \ref{sec:calibration}\\
+\(\beta_0,\beta_1,\beta_2,\beta_3\) & NSS level/loading coefficients & Decimal rate & \ref{sec:nss-equations}\\
+\(\tau_1,\tau_2\) & Positive NSS decay scales & Years, not payment times & \ref{sec:nss-equations}\\
+\(x,x_1,x_2\) & Loading argument; \(T/\tau_1,T/\tau_2\) & Dimensionless & \ref{sec:nss-equations}\\
+\(L_1,L_2\) & NSS loading functions & Dimensionless & \ref{sec:nss-equations}\\
+\(r_{\mathrm{NSS}}(T;\theta)\) & Generic fitted NSS rate & Decimal; caller's convention & \ref{sec:nss-equations}\\
+\(n,\ell\) & Observation count and index & Integers; \(1\leq\ell\leq n\) & \ref{sec:calibration}\\
+\(u_\ell,z_\ell\) & Observation maturity and rate & Years; decimal rate & \ref{sec:calibration}\\
+\(e_\ell\) & Observed minus fitted residual & Decimal rate & \ref{sec:calibration}\\
+\(S(\theta)\) & Sum of squared rate residuals & Squared decimal rate & \ref{sec:calibration}\\
+\(\Theta,\mathbb R\) & Feasible parameter set; real numbers & Betas real, taus bounded in years & \ref{sec:calibration}\\
+\(\mathrm{RMSE},\mathrm{RMSE}_{\bp}\) & Root mean squared rate error & Decimal rate; basis points & \ref{sec:calibration}\\
+\(t_i\) & \(\operatorname{days}(d_i-d_s)/365\) & Actual/365 years & \ref{sec:zero-price}\\
+\(r(T)\) & Explicit zero rate & Continuous annual decimal & \ref{sec:zero-price}\\
+\(DF(T)\) & Zero-curve discount factor & Dimensionless & \ref{sec:zero-price}\\
+\(V_i\) & Zero-discounted cash-flow present value & Currency & \ref{sec:zero-price}\\
+\(P_{\mathrm{zero}}[r]\) & Dirty price as a function of zero curve & Currency & \ref{sec:zero-price}\\
+\(s(T),\delta r\) & Curve shock; constant parallel amplitude & Decimal zero-rate change & \ref{sec:parallel}\\
+\(\Delta P_s\) & Shocked minus base price (scenario P\&L) & Currency & \ref{sec:parallel}\\
+\(M,v,a_v\) & Anchor count, index and tenor & Integers; tenor in years & \ref{sec:shapes}\\
+\(z_v^{\bp}\) & Prescribed anchor shift & Basis points & \ref{sec:shapes}\\
+\(d_v^{\mathrm{shock}}\) & Decimal anchor shift & Decimal; never a calendar date & \ref{sec:shapes}\\
+\(J,j,k_j\) & Key count, index and tenor & Integers; tenor in years & \ref{sec:keys}\\
+\(b_j(T)\) & Key-rate basis weight & Dimensionless & \ref{sec:keys}\\
+\(\mathrm{KRDV01}_j\) & Central key-rate sensitivity & Currency for 1 bp basis move & \ref{sec:key-dv01}\\
+\(\mathrm{DV01}_{\parallel}\) & Central parallel zero-rate sensitivity & Currency for 1 bp & \ref{sec:key-dv01}\\
+\(\Delta_{\mathrm{KR}}\) & Sum of key DV01 minus parallel DV01 & Currency & \ref{sec:reconciliation}\\
+\(\sinh,\cosh\) & Hyperbolic sine and cosine & Dimensionless arguments & \ref{sec:reconciliation}, \ref{sec:app-reconciliation}\\
+\(a_{\mathrm{num}},a_{\mathrm{ref}}\) & Computed and reference scalar & Units of tested quantity & \ref{sec:tolerances}\\
+\(\varepsilon_{\mathrm{abs}},\varepsilon_{\mathrm{rel}}\) & Absolute and relative tolerances & Quantity units; dimensionless & \ref{sec:tolerances}\\
+\(P^{(p)},p\) & \(p\)-th YTM derivative; its order & Derivative units; positive integer & \ref{sec:app-dv01}\\
+\(\Delta_3\) & Cubic term in key/parallel reconciliation & Currency & \ref{sec:app-reconciliation}\\
+\end{longtable}
+\endgroup
+\noindent Observation residuals use \(e_\ell\), rather than \(e_i\), so that
+\(i\) remains the cash-flow index. The independent report's unadorned \(y\)
+maps to \(\yytm\); its reconciliation \(\Delta\) maps to
+\(\Delta_{\mathrm{KR}}\). Its \(T_i\) and \(t_i\) time distinction is retained.
+% Do not reuse tau for payment time, C for convexity, or y_YTM for zero rates.
+\section*{Abbreviations}
+\begin{longtable}{@{}L{0.18\textwidth}L{0.74\textwidth}@{}}
+\toprule Abbreviation & Expansion\\ \midrule
+AI & Accrued interest\\
+bp & Basis point; \(10^{-4}\) decimal rate\\
+BIS & Bank for International Settlements\\
+CLI & Command-line interface; existing illustrative commands only\\
+DV01 & Currency price sensitivity for a one-basis-point rate move;
+historically dollar value of one basis point\\
+IMF & International Monetary Fund\\
+KRDV01 & Key-rate DV01\\
+NBER & National Bureau of Economic Research\\
+NSS & Nelson--Siegel--Svensson\\
+P\&L & Profit and loss; here instantaneous price change only\\
+PV & Present value\\
+RMSE & Root mean squared error\\
+SSE & Sum of squared errors; \(S(\theta)\) here\\
+YTM & Yield to maturity\\
+\bottomrule
+\end{longtable}

@@ -1,0 +1,88 @@
+\chapter{Interest-rate and curve-risk analysis}\label{ch:risk}
+\section{Zero-curve valuation and Actual/365 timing}\label{sec:zero-price}
+Let \(r(T)\) denote the continuous annual decimal zero rate for maturity
+\(T\). For payment date \(d_i\), define \(t_i\) as actual calendar days
+from settlement divided by 365. The discount factor \(DF(T)\) is the
+present value of one unit payable at \(T\); \(V_i\) is the currency present
+value of cash flow \(CF_i\) under this zero curve.
+\begin{equation}\label{eq:zero-price}
+t_i=\frac{\operatorname{days}(d_i-d_s)}{365},\qquad
+DF(T)=e^{-r(T)T},\qquad V_i=CF_iDF(t_i),\qquad
+P_{\mathrm{zero}}[r]=\sum_i V_i.
+\end{equation}
+% Distinguish t_i from T_i=q_i/m. Leap days enter the numerator.
+% P_zero is dirty currency price. A zero rate discounts its entire horizon;
+% it is not an instantaneous forward rate.
+\section{Parallel shifts and full repricing}\label{sec:parallel}
+A curve shock \(s(T)\) is an additive decimal-rate change.
+A parallel shift has \(s(T)=\delta r\), with constant decimal amplitude
+\(\delta r\). Define scenario profit and loss (P\&L), here solely the
+instantaneous currency price change, as
+\begin{equation}\label{eq:scenario}
+\Delta P_s=P_{\mathrm{zero}}[r+s]-P_{\mathrm{zero}}[r].
+\end{equation}
+% Define full repricing; fix settlement, cash flows and base calibration.
+% Derive negative parallel derivative with positive redemption.
+% No carry, elapsed time, refitting, scenario probabilities or realised return.
+\section{Shaped shocks and piecewise-linear interpolation}\label{sec:shapes}
+% Define interpolation, anchors and endpoint tails before the equation.
+Let \(a_v\) be ordered positive anchor maturities, \(v=1,\ldots,M\), where
+\(M\) counts anchors. The shift \(z^{\bp}_v\) is a number of basis points;
+its decimal equivalent is \(d^{\mathrm{shock}}_v=10^{-4}z^{\bp}_v\).
+Between adjacent anchors the shift is
+\begin{equation}\label{eq:linear-shock}
+s(T)=\frac{a_{v+1}-T}{a_{v+1}-a_v}d^{\mathrm{shock}}_v+
+\frac{T-a_v}{a_{v+1}-a_v}d^{\mathrm{shock}}_{v+1}.
+\end{equation}
+Outside the anchor range, the nearest endpoint shift is held constant.
+With one anchor the shift is constant everywhere.
+\subsection{Steepening and flattening scenarios}
+% Define steepener as increased long-minus-short rate difference and flattener
+% as decreased difference. Defaults -10/0/+10 and +10/0/-10 bp at 2/10/30 years.
+% These names do not determine price-change signs.
+\subsection{Interpolation assumptions}
+% Continuous values, possibly discontinuous slopes. Convert bp exactly once.
+\section{Key rates and basis functions}\label{sec:keys}
+Key rates are rates at selected maturities used to describe local curve
+perturbations \parencite{ho1992}. Let \(k_j\), \(j=1,\ldots,J\), be the
+ordered positive key maturities and \(J\) their count.
+The dimensionless basis \(b_j(T)\) equals one at its own key and zero at
+other keys, with linear interpolation and constant endpoint tails.
+A partition of unity is a collection of weights whose sum is one:
+\begin{equation}\label{eq:partition}
+0\leq b_j(T)\leq1,\qquad \sum_{j=1}^{J}b_j(T)=1\quad(T>0).
+\end{equation}
+% Keys 2/5/10/30 years differ from shape anchors. Single key: b_1=1 everywhere.
+% Ho supports the concept, not an unverified attribution of this exact basis,
+% tail behaviour or central currency-valued bump convention.
+\section{Key-rate and parallel DV01}\label{sec:key-dv01}
+Key-rate DV01, \(\mathrm{KRDV01}_j\), is the currency sensitivity to a
+one-basis-point change in basis \(j\). Parallel DV01,
+\(\mathrm{DV01}_{\parallel}\), uses the same bump at every maturity.
+With the decimal bump \(h=10^{-4}\),
+\begin{align}
+\mathrm{KRDV01}_j&=
+\frac{P_{\mathrm{zero}}[r-hb_j]-P_{\mathrm{zero}}[r+hb_j]}2,
+\label{eq:key-dv01}\\
+\mathrm{DV01}_{\parallel}&=
+\frac{P_{\mathrm{zero}}[r-h]-P_{\mathrm{zero}}[r+h]}2.
+\label{eq:parallel-dv01}
+\end{align}
+% Both are currency for supplied F, not normalised duration.
+% Down-minus-up gives nonnegative sensitivity; an unexposed key can have zero.
+\section{Reconciliation and nonlinear effects}\label{sec:reconciliation}
+Let \(\Delta_{\mathrm{KR}}\) denote summed key-rate DV01 minus parallel
+DV01. Define \(\sinh(x)=(e^x-e^{-x})/2\), the hyperbolic sine.
+For fixed nonnegative present values,
+\begin{align}
+\mathrm{KRDV01}_j&=\sum_i V_i\sinh(ht_i b_j(t_i)),\\
+\Delta_{\mathrm{KR}}&=
+\frac{h^3}{6}\sum_i V_it_i^3
+ \left(\sum_j b_j(t_i)^3-1\right)+O(h^5).
+\label{eq:reconciliation}
+\end{align}
+% First-order sensitivities sum exactly; finite-bump central repricing does not.
+% A small nonzero discrepancy need not indicate a failed identity.
+\plan{Present first-order reconciliation before nonlinear effects.
+Proofs belong in \cref{sec:app-partition,sec:app-reconciliation}
+and measured results in \cref{tab:key-results}.}

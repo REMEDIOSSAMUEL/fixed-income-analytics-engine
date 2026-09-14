@@ -1,0 +1,99 @@
+\documentclass[12pt,a4paper,oneside]{report}
+% Compile with pdfLaTeX via latexmk; modern LaTeX already defaults to UTF-8.
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[british]{babel}
+\usepackage[left=30mm,right=25mm,top=25mm,bottom=25mm]{geometry}
+\usepackage{setspace,microtype}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs,longtable,array}
+\usepackage{siunitx}
+\usepackage{csquotes}
+\usepackage{graphicx,float,caption,subcaption,xcolor}
+\usepackage[backend=biber,style=authoryear,maxcitenames=2,maxbibnames=99,
+  giveninits=true,uniquename=init,doi=true,isbn=false,url=true]{biblatex}
+\addbibresource{references.bib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+\hypersetup{
+  pdftitle={A Fixed-Income Analytics Engine: Mathematical Foundations,
+  Numerical Verification, Yield-Curve Modelling and Interest-Rate Risk},
+  pdfsubject={Dissertation architecture for an educational computational study}
+}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\onehalfspacing
+\setlength{\emergencystretch}{2em}
+\setlength{\parindent}{1.5em}
+\captionsetup{font=small,labelfont=bf}
+\graphicspath{{figures/}}
+\numberwithin{equation}{chapter}
+\newcommand{\yytm}{y_{\mathrm{YTM}}}
+\newcommand{\bp}{\mathrm{bp}}
+\newcommand{\plan}[1]{\par\noindent{\small\color{gray}\textit{Drafting plan:} #1}\par}
+\newcommand{\resultsource}{\par\smallskip{\footnotesize Source: author's calculations using
+the illustrative offline data supplied with the analytics engine.}}
+\begin{document}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\centering
+\vspace*{20mm}
+{\LARGE\bfseries A Fixed-Income Analytics Engine:\par}
+\vspace{6mm}
+{\Large Mathematical Foundations, Numerical Verification,
+Yield-Curve Modelling and Interest-Rate Risk\par}
+\vspace{12mm}
+{\large Fixed-rate bond valuation and the
+Nelson--Siegel--Svensson term structure\par}
+\vfill
+{\large Dissertation architecture and research plan\par}
+\vspace{6mm}
+Author: \textbf{[Author name to be supplied]}\par
+\vspace{12mm}
+{\small Educational computational study; working document.\par
+No institutional affiliation or submission is asserted.}
+\end{titlepage}
+\pagenumbering{roman}
+\hypersetup{pageanchor=true}
+\chapter*{Study status and declaration note}
+\addcontentsline{toc}{chapter}{Study status and declaration note}
+This document establishes the architecture of a dissertation concerning
+an existing educational fixed-income analytics engine. It contains a research
+plan, a verified reference base, notation, terminology and selected mathematical
+statements. It is not a completed dissertation or an institutional declaration.
+The independent verification record remains separately available as
+\path{paper/verification_report.tex}.
+% Any later institutional declaration must use the institution's actual requirements.
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\plan{Write the abstract after the analysis is complete: motivation; aim;
+explicit financial conventions; analytical and numerical verification methods;
+principal results with units; and the scope of the conclusions.
+Identify the inputs as illustrative and offline. Do not claim empirical
+market significance or originality of established formulas.}
+\clearpage
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+\input{frontmatter/notation}
+\input{frontmatter/glossary}
+\clearpage
+\pagenumbering{arabic}
+\input{chapters/01_introduction}
+\input{chapters/02_fixed_income_foundations}
+\input{chapters/03_bond_analytics}
+\input{chapters/04_nss_yield_curve}
+\input{chapters/05_interest_rate_risk}
+\input{chapters/06_computational_methodology}
+\input{chapters/07_mathematical_verification}
+\input{chapters/08_results}
+\input{chapters/09_discussion_and_limitations}
+\input{chapters/10_conclusion}
+\clearpage
+\printbibliography[heading=bibintoc,title={References}]
+\appendix
+\input{appendices/A_detailed_derivations}
+\input{appendices/B_reproducibility}
+\end{document}

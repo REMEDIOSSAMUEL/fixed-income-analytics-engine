@@ -1,0 +1,62 @@
+\chapter{Detailed mathematical derivations}\label{app:derivations}
+% Adapt the independent report's derivations in original exposition.
+% Every added symbol must enter frontmatter/notation.tex and be defined here.
+\section{Par-bond identity}\label{sec:app-par}
+% Report: Par-bond identity: geometric-series proof.
+% At coupon-date settlement q_i=i, c=y_YTM. Sum the geometric series using
+% B already defined in Chapter 3; treat c=y_YTM=0 separately.
+% Explain why this does not establish dirty par between coupon dates.
+\section{First derivative, modified duration and second derivative}\label{sec:app-derivatives}
+% Report: First derivative and duration; Independent numerical duration and convexity.
+% Differentiate B^{-q_i} with fixed fractional q_i twice. Show each 1/m factor,
+% derive -P'/P=D_Mac/B and P''/P=convexity; no 1/2 in convexity.
+\section{Central-difference DV01 and Taylor remainders}\label{sec:app-dv01}
+% Report: YTM DV01: repricing versus duration approximation.
+% Explain why down-minus-up cancels even powers. Distinguish division by 2
+% from derivative division by 2h; absolute DV01 discrepancy starts at h^3.
+Define \(P^{(p)}\) as the \(p\)-th derivative with respect to annual decimal
+YTM, where \(p\) is a positive integer.
+\begin{equation}
+\frac{P(\yytm-h)-P(\yytm+h)}2
+=-hP'(\yytm)-\frac{h^3}{6}P^{(3)}(\yytm)+O(h^5).
+\end{equation}
+% Keep the derivation, with O(h^2) derivative truncation and rounding discussion,
+% separate from numeric step-size tables in Chapter 7.
+\section{NSS expansions and asymptotic limits}\label{sec:app-nss}
+% Report: NSS model, analytical limits, and numerical stability.
+% Derive from exponential series, separately expand L2 to avoid cancellation.
+\begin{align}
+L_1(x)&=1-\frac{x}{2}+\frac{x^2}{6}-\frac{x^3}{24}
++\frac{x^4}{120}-\frac{x^5}{720}+O(x^6),\\
+L_2(x)&=\frac{x}{2}-\frac{x^2}{3}+\frac{x^3}{8}
+-\frac{x^4}{30}+\frac{x^5}{144}+O(x^6).
+\end{align}
+% Derive short limit beta0+beta1; long limit beta0 and algebraic 1/T decay.
+% Explain beta1 not equal to derivative at zero. Keep API T=0 exclusion explicit.
+\section{Key-rate basis and partition of unity}\label{sec:app-partition}
+% Report: Key-rate basis and partition of unity.
+% Write first/last basis definitions with constant tails, each interior
+% triangular basis and the single-key case. Four exhaustive cases:
+% below first key, exactly at a key, between keys, above last key.
+\begin{equation}
+b_j(T)+b_{j+1}(T)
+=\frac{k_{j+1}-T}{k_{j+1}-k_j}
++\frac{T-k_j}{k_{j+1}-k_j}=1
+\quad(k_j<T<k_{j+1}).
+\end{equation}
+% Adjacent bases only are nonzero inside an interval. Explicit endpoint proof
+% is necessary; a plot or sampled sum is not the all-maturity proof.
+\section{First-order reconciliation and finite-bump correction}\label{sec:app-reconciliation}
+% Report: Key-rate DV01, parallel DV01, and reconciliation.
+% Derive each directional derivative of the price functional, then sum using
+% partition. Expand sinh to prove the cubic leading discrepancy.
+Let \(\Delta_3\) denote the cubic term in \cref{eq:reconciliation},
+and define the hyperbolic cosine by \(\cosh(x)=(e^x+e^{-x})/2\).
+For \(h>0\) and nonnegative present values, the report derives
+\begin{equation}
+|\Delta_{\mathrm{KR}}-\Delta_3|
+\leq\sum_i V_i\frac{(ht_i)^5\cosh(ht_i)}{120}.
+\end{equation}
+% Prove with 0<=b_j<=1 and sum b_j=1; sum b_j^p<=1 for p>1.
+% Explain Delta_KR<=0 in real arithmetic and when equality is possible.
+% Floating-point subtraction adds rounding beyond this analytic remainder bound.

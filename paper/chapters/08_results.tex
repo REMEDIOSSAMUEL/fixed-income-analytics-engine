@@ -1,0 +1,189 @@
+\chapter{Illustrative numerical results}\label{ch:results}
+\section{Result provenance and presentation}\label{sec:result-provenance}
+\plan{Develop interpretation after the mathematical chapters are drafted.
+The numerical anchors below were reproduced by the current implementation on
+14 September 2026 at revision \texttt{a1dde66}. All four existing CLI commands
+completed; their displayed values agree with the independent report.
+These invented offline inputs support methodological illustration, with no
+empirical market interpretation.}
+% Tables retain CLI display precision, not fabricated additional digits.
+% Derived differences use full precision before rounding, not rounded cells.
+\section{Illustrative bond specifications}
+\begin{table}[htbp]
+\centering\small
+\caption{Illustrative contractual and valuation inputs}\label{tab:bond-inputs}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Input & YTM example & Curve-risk example\\
+\midrule
+Settlement & 15 April 2025 & 15 April 2025\\
+Maturity & 15 January 2030 & 15 January 2055\\
+Face value (currency) & 100 & 100\\
+Annual coupon (decimal) & 0.04 & 0.04\\
+Payments per year & 2 & 2\\
+Nominal annual YTM (decimal) & 0.045 & Not used\\
+Discounting & Coupon-period YTM & Continuous zero curve\\
+Time in years & \(T_i=q_i/m\) & \(t_i=\operatorname{days}(d_i-d_s)/365\)\\
+\bottomrule
+\end{tabular}
+\resultsource
+\end{table}
+% Never compare these two bonds' DV01s as though only the pricing convention differs.
+\section{Conventional bond analytics}
+\begin{table}[htbp]
+\centering\small
+\caption{YTM analytics for the illustrative 2030 bond}\label{tab:bond-results}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Measure & Unit & Value\\
+\midrule
+Accrued interest & Currency & 0.994475\\
+Dirty price & Currency & 98.871313\\
+Clean price & Currency & 97.876838\\
+Macaulay duration & Years & 4.326727\\
+Modified duration & Years & 4.231518\\
+Convexity & Years squared & 21.110445\\
+Central YTM DV01 & Currency for 1 bp & 0.041838\\
+\bottomrule
+\end{tabular}
+\resultsource
+\end{table}
+% Relate interpretation to the derivatives, not to investment performance.
+\section{Illustrative term-structure observations}
+\begin{table}[htbp]
+\centering\small
+\caption{Invented offline term-structure observations}\label{tab:observations}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+Maturity (years) & Rate (decimal) & Maturity (years) & Rate (decimal)\\
+\midrule
+0.25 & 0.0420 & 5 & 0.0370\\
+0.5 & 0.0410 & 7 & 0.0380\\
+1 & 0.0390 & 10 & 0.0390\\
+2 & 0.0370 & 20 & 0.0410\\
+3 & 0.0365 & 30 & 0.0415\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize Source: \path{examples/illustrative_curve.csv}.
+No compounding convention is implied by these generic rates.}
+\end{table}
+\section{NSS parameter estimates and calibration fit}
+\begin{table}[htbp]
+\centering\small
+\caption{NSS fit to the illustrative observations}\label{tab:nss-results}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Parameter or diagnostic & Unit or meaning & Value\\
+\midrule
+\(\beta_0\) & Decimal rate & 0.0395973473\\
+\(\beta_1\) & Decimal rate & 0.0040652482\\
+\(\beta_2\) & Decimal rate & -0.0190419619\\
+\(\beta_3\) & Decimal rate & 0.0091397288\\
+\(\tau_1\) & Years & 1.6287979110\\
+\(\tau_2\) & Years & 16.1937672075\\
+RMSE & Decimal rate & 0.0000782762\\
+RMSE & Basis points & 0.782762\\
+Successful starts & Count & 6/6\\
+Selected status & \texttt{ftol} termination & 2\\
+Selected \texttt{nfev} & Excludes numerical-Jacobian calls & 17\\
+\bottomrule
+\end{tabular}
+\resultsource
+\end{table}
+% Do not infer economic stability from parameter display precision.
+\begin{table}[htbp]
+\centering\small
+\caption{Planned observation-level calibration error table}\label{tab:calibration-errors}
+\begin{tabular}{@{}L{0.23\textwidth}L{0.34\textwidth}L{0.34\textwidth}@{}}
+\toprule
+Row identifier & Rate columns & Error columns\\
+\midrule
+Each observed tenor (years) & Observed and fitted decimal rates
+& Observed minus fitted residual (decimal and bp)\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize Populate from \texttt{NSSFitResult} at the recorded
+revision; recompute RMSE before rounding. Numerical rows are pending.}
+\end{table}
+\begin{figure}[htbp]
+\centering
+\fbox{\parbox{0.86\textwidth}{\centering
+Planned plot: illustrative observations and fitted NSS curve.\\
+Horizontal axis: maturity (years), 0.25--30.\\
+Vertical axis: generic rate (\%), obtained as decimal rate times 100.\\
+Use distinct point and curve styles and a legend.}}
+\caption{Planned figure: illustrative rates and their NSS fit}\label{fig:nss}
+\resultsource
+\end{figure}
+% Future asset: figures/illustrative_nss.pdf (or PNG).
+% Existing plot_nss gives a 500-point grid and labelled axes; use its actual
+% outputs without changing financial code. No image-generation tool is appropriate.
+\section{Parallel and shaped scenarios}
+\begin{table}[htbp]
+\centering\small
+\caption{Full-repricing scenarios for the illustrative 2055 bond}\label{tab:scenario-results}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Scenario & Base price & Shocked price & P\&L\\
+\midrule
+Parallel \(+25\,\bp\) & 98.69995920 & 94.58065268 & -4.11930652\\
+Parallel \(-25\,\bp\) & 98.69995920 & 103.07256709 & +4.37260789\\
+Steepener & 98.69995920 & 97.57938095 & -1.12057825\\
+Flattener & 98.69995920 & 99.85176589 & +1.15180669\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize All amounts are currency for face 100.
+Steepener: \(-10/0/+10\,\bp\) at 2/10/30 years; flattener reverses these shifts.
+Fitted rates are explicitly interpreted as continuous annual zeros.}
+\resultsource
+\end{table}
+% Explain convexity-related asymmetry for parallel shocks; shape signs depend on exposure.
+\section{Key-rate sensitivities and reconciliation}
+\begin{table}[htbp]
+\centering\small
+\caption{Key-rate DV01 and parallel reconciliation for the 2055 bond}\label{tab:key-results}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Sensitivity or comparison & Currency for face 100\\
+\midrule
+2-year key-rate DV01 & 0.0023690644\\
+5-year key-rate DV01 & 0.0072006030\\
+10-year key-rate DV01 & 0.0396822358\\
+30-year key-rate DV01 & 0.1204744674\\
+Parallel DV01 & 0.1697264000\\
+Sum of key-rate DV01 & 0.1697263707\\
+Sum minus parallel & \(-2.934341125638\times10^{-8}\)\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize Each sensitivity uses a one-basis-point central
+zero-rate bump, with Actual/365 payment times. The discrepancy is computed
+before rounding; it is a currency difference, not a rate in bp.}
+\resultsource
+\end{table}
+\begin{figure}[htbp]
+\centering
+\fbox{\parbox{0.86\textwidth}{\centering
+Planned bar chart: key-rate DV01 at 2, 5, 10 and 30 years.\\
+Horizontal axis: key tenor (years), with explicit labels.\\
+Vertical axis: key-rate DV01 (currency for a 1 bp basis move; face 100).\\
+Start the vertical axis at zero; state continuous-zero and Actual/365 conventions.}}
+\caption{Planned figure: key-rate DV01 by tenor for the illustrative 2055 bond}\label{fig:key-dv01}
+\resultsource
+\end{figure}
+% Future asset: figures/key_rate_dv01.pdf. Generate later from existing public API values.
+\begin{figure}[htbp]
+\centering
+\fbox{\parbox{0.86\textwidth}{\centering
+Planned bar chart: the four scenarios in \cref{tab:scenario-results}.\\
+Horizontal axis: scenario, including shock size or anchor definition.\\
+Vertical axis: instantaneous price change (currency for face 100).\\
+Show a zero reference line and retain positive and negative bars.}}
+\caption{Planned figure: scenario P\&L for the illustrative 2055 bond}\label{fig:scenarios}
+\resultsource
+\end{figure}
+% Future asset: figures/scenario_pnl.pdf. No stochastic interpretation.
+\section{Results synthesis}
+% Relate tables to research questions, without repeating the discussion chapter.
+% These are numeric anchors and figure/table plans, not complete results prose.
+% Exactly three figures are planned. Captions/axes/source must survive export.
+\clearpage

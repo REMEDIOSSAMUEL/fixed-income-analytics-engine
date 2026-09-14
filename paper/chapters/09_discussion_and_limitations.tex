@@ -1,0 +1,45 @@
+\chapter{Discussion and limitations}\label{ch:limitations}
+\section{Interpretation of the research evidence}
+% Explain which RQ each result addresses; discuss material failures if any.
+% No selective presentation or claims based solely on test counts.
+\subsection{What mathematical verification establishes}
+% Identities under assumptions; implementation agreement at tested inputs;
+% expected numerical orders and unit consistency.
+\subsection{What mathematical verification does not establish}
+% Universal floating-point correctness, economic appropriateness, parameter
+% uniqueness, global optimality, predictive or empirical market validity.
+\section{Contract and calendar simplifications}
+% Regular coupons only; no issue-date/stub periods, business-day rules,
+% holidays, special month-end or ex-coupon conventions.
+\subsection{Accrual and day-count conventions}
+% Actual/actual within a regular period versus fixed denominator Actual/365.
+% Neither is a complete market convention system.
+\subsection{YTM valuation and sensitivity limits}
+% Single discount yield, dirty-price normalisation, local approximation;
+% YTM is not a maturity-specific zero rate or guaranteed realised return.
+\section{Zero-curve interpretation and model risk}
+% Define model risk: consequences of unsuitable assumptions or specification.
+\subsection{Educational assignment of NSS rates as zeros}
+% Fitting generic/par-style rates does not justify zero discounting.
+% The risk example deliberately assigns continuous-zero meaning.
+\subsection{Absence of a rigorous coupon-bond bootstrap}
+% Explain what economic inference is missing; do not add a bootstrap method.
+% Refer to institutional literature for the distinction, not external observations.
+\plan{Evaluate the interpretation against
+\textcite{bis2005,gurkaynak2007,anderson2001}. No data are imported from these studies.}
+\section{Nonlinear calibration and identification}
+% Local minima; weak identification; fixed start coverage; tau bounds;
+% no positivity, monotonicity, shape or arbitrage constraints;
+% weak extrapolation justification; excellent fit need not stabilise coefficients.
+\plan{Connect the observed fit to the limitations described by
+\textcite{gilli2010,nocedal2006}, without claiming their alternative methods were used.}
+\section{Scenario and sensitivity limitations}
+% Deterministic scenarios have no estimated probabilities. Fixed settlement,
+% no carry or changing cash flows. Shape signs depend on exposure.
+% Basis/anchors/tails are modelling choices; central finite bumps are nonlinear.
+\section{Illustrative inputs and reproducibility}
+% Invented offline rates/bonds; no empirical significance.
+% Dependencies not locked; numerical optimisation may vary with environment.
+\section{Scope of the conclusions}
+% No production readiness, commercial validation or originality of standard formulas.
+% Any later research extensions remain outside this study and are not a feature wishlist.

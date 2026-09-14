@@ -1,0 +1,102 @@
+\chapter{Reproducibility}\label{app:reproducibility}
+\section{Execution context and provenance}
+% Record final manuscript revision separately when full results are produced.
+% Do not retrospectively replace the independent report's historical environment.
+The planning-phase checks used native Windows PowerShell, Python 3.12.10
+and the existing editable installation at revision \texttt{a1dde66}.
+Import resolved to this repository's \path{src/fixed_income/__init__.py};
+installed package metadata confirmed \texttt{editable=true}.
+On 14 September 2026, all 234 tests passed and the bond, curve, risk and
+demo commands completed with the results retained in \cref{ch:results}.
+% No reinstall was needed to validate the already editable installation.
+\begin{table}[htbp]
+\centering\small
+\caption{Recorded numerical environment for the planning-phase checks}\label{tab:environment}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Component & Version\\
+\midrule
+Python & 3.12.10\\
+NumPy & 2.5.3\\
+SciPy & 1.18.1\\
+pandas & 3.0.5\\
+matplotlib & 3.11.2\\
+python-dateutil & 2.9.0.post0\\
+pytest & 9.1.1\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize Source: installed interpreter and package metadata.
+This is an execution record, not a dependency lockfile.}
+\end{table}
+\section{Environment setup and editable installation}
+Run from the repository root. Create the environment only if it does not
+already exist; select an installed Python version of at least 3.12.
+Dependency installation may require network access; analytical execution
+uses only the offline inputs.
+\begingroup\footnotesize
+\begin{verbatim}
+if (-not (Test-Path .\.venv\Scripts\python.exe)) {
+    py -3.12 -m venv .venv
+}
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe --version
+.\.venv\Scripts\python.exe -c "import fixed_income; print(fixed_income.__file__)"
+.\.venv\Scripts\python.exe -m pip list
+git rev-parse HEAD
+\end{verbatim}
+\endgroup
+% Dependencies are not pinned; log versions before comparing numeric results.
+\section{Tests and existing illustrative commands}
+\begingroup\footnotesize
+\begin{verbatim}
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m fixed_income.cli bond
+.\.venv\Scripts\python.exe -m fixed_income.cli curve
+.\.venv\Scripts\python.exe -m fixed_income.cli risk
+.\.venv\Scripts\python.exe -m fixed_income.cli demo
+git diff --check
+\end{verbatim}
+\endgroup
+% Stop on a nonzero exit code and investigate before treating results as valid.
+The curve, risk and demo commands resolve
+\path{examples/illustrative_curve.csv} relative to the current working directory.
+Curve and demo write \path{outputs/yield_curve.png}, replacing the prior plot.
+The independent calculation scripts remain in the separate verification report.
+\section{LaTeX toolchain and compilation}
+Use an installed pdfLaTeX toolchain with \texttt{latexmk}, \texttt{biblatex}
+and \texttt{biber}; no Python dependency is required for typesetting.
+The bibliography uses one author--year system throughout.
+\begingroup\footnotesize
+\begin{verbatim}
+latexmk --version
+biber --version
+Push-Location .\paper
+try {
+    latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex
+    if ($LASTEXITCODE -ne 0) { throw "LaTeX compilation failed." }
+} finally {
+    Pop-Location
+}
+\end{verbatim}
+\endgroup
+The expected PDF is \path{paper/build/main.pdf}.
+Auxiliary files, including the bibliography build products, belong in
+\path{paper/build/}. The existing repository rule \path{build/} already
+ignores this directory; no global PDF ignore rule is introduced.
+The skeleton was compiled with latexmk 4.88, Biber 2.22 and
+pdfTeX 1.40.29 (MiKTeX 26.5). The bibliography was processed successfully
+by Biber as part of the latexmk build.
+\section{Result transcription and figure production plan}
+% Future manuscript work: obtain values from existing public APIs or existing
+% commands; preserve precision internally and round once in tables.
+% Check displayed values and residual sign, assign units/captions/source, and
+% compare with Chapter 7's independent references. No new financial algorithms.
+% Generate the three planned static figures in paper/figures/ only when
+% results presentation is requested. Keep the current boxes visibly marked as plans.
+\section{Bibliographic provenance}
+% Audit is an editorial research record, not final dissertation narrative.
+The source-selection and metadata checks are recorded in
+\path{paper/bibliography_verification.md}. Bibliographic metadata verification
+does not establish that every chapter or argument in a source has been read.
+Later drafting must inspect the relevant source material before making more
+specific claims or adding pinpoint page citations.

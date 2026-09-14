@@ -1,0 +1,55 @@
+\chapter{Fixed-income foundations}\label{ch:foundations}
+\section{Time value of money and present value}\label{sec:present-value}
+% First define time value of money as comparison of amounts payable at
+% different dates under a stated accumulation rule. Avoid assuming positive rates.
+% Define present value and discount factor using one future payment before a bond.
+\plan{Begin with a single certain payment, then introduce valuation by summing
+discounted cash flows \parencite{tuckman2011}. Explain each operation in words.}
+\section{Interest rates, compounding and units}\label{sec:compounding}
+\subsection{Nominal and continuous compounding}
+% Define nominal annual rate, coupon-frequency compounding and continuous
+% compounding. Explain that nominal here concerns quotation, not inflation.
+% Use a common time basis for any equivalence demonstration. Negative rates
+% are possible when the periodic accumulation factor remains positive.
+\subsection{Decimals, percentages and basis points}\label{sec:units}
+A basis point (bp) is one hundredth of a percentage point:
+\(1\,\bp=0.0001\) in decimal-rate units. Thus \(0.05=5\%\), and a
+\(25\,\bp\) increase is a decimal change of \(0.0025\).
+% Distinguish percentage-point changes from relative percentage changes.
+% All later equations use decimal rates; display conversions must be labelled.
+\section{Bond contracts and cash flows}\label{sec:contract}
+% Define bond, fixed-rate bond, face/par value, principal, redemption, coupon,
+% coupon rate and coupon frequency in this order, using glossary wording.
+% Distinguish a coupon's currency amount from the coupon rate.
+\subsection{Settlement, payment and maturity dates}\label{sec:dates}
+% Define dates and explain ownership timing; introduce regular coupon schedules.
+% Reserve implementation-specific clipping and settlement exclusion for Chapter 3.
+\subsection{The fixed contractual payment stream}
+% Describe coupons plus final redemption, default face 100; no optionality/default model.
+\section{Accrued interest and price quotation}\label{sec:price-quotation}
+% Define accrued interest as the coupon amount attributed to elapsed time
+% under a stated convention. Define dirty price including accrual and clean
+% price excluding it; explain why changing quotation does not change cash flows.
+\section{Yield to maturity}\label{sec:ytm-concept}
+% Define YTM as the single rate matching dirty price to discounted promised
+% payments under a stated compounding rule. It is not automatically a realised return.
+% This engine prices from a supplied YTM; it does not solve for YTM.
+\section{Spot rates, zero-coupon rates and par yields}\label{sec:zero-par}
+% Define zero-coupon bond first, then spot/zero rate for a single horizon,
+% then par yield as the coupon rate making an assumed regular bond worth par.
+% A par-yield concept is background theory; no par-yield calculation API is claimed.
+\plan{Explain why coupon-bearing observations cannot generally be used directly
+as single-payment discount rates \parencite{tuckman2011,bis2005}.}
+\section{Term structure and yield curves}\label{sec:term-structure}
+% Define term structure as the maturity dependence of rates at a fixed valuation
+% date under common instrument/rate conventions; yield curve is its representation.
+% Distinguish YTM, par and zero curves. A rate function has no economic
+% interpretation solely because it is smooth.
+\plan{Introduce institutional curve estimation only as methodological context
+\parencite{gurkaynak2007,anderson2001}. No external observations enter this study.}
+\section{Conceptual bridge to the implemented conventions}
+% Explain what must be specified before valuation: payment schedule, accrual,
+% yield quotation, discounting time basis, price basis and units.
+% Cross-reference the formal assumptions table; avoid a second inconsistent convention list.
+\plan{Connect the concepts to \cref{tab:assumptions} and to the separate
+valuation equations in \cref{ch:bonds,ch:risk}.}

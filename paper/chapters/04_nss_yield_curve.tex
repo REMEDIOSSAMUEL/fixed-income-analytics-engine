@@ -1,0 +1,94 @@
+\chapter{The Nelson--Siegel--Svensson yield-curve model}\label{ch:nss}
+\section{Parametric term-structure modelling}\label{sec:nss-background}
+% Define parameter, parametric model, Nelson--Siegel model and Svensson extension.
+% Trace the original functional form and additional curvature loading.
+% Do not adopt the source papers' empirical or monetary-policy questions.
+\plan{Position the functional form in \textcite{nelson1987,svensson1994} and the
+institutional synthesis of \textcite{bis2005}. Explain the trade-off between
+a small parameter set and flexibility; do not claim arbitrage freedom.}
+\subsection{Nelson--Siegel background}
+% Three coefficients and one decay scale in the original model.
+\subsection{The Svensson extension}
+% One extra coefficient and decay scale; six parameters in total.
+\section{Six parameters and factor loadings}\label{sec:nss-equations}
+Let \(T>0\) denote curve maturity in years and
+\(\theta=(\beta_0,\beta_1,\beta_2,\beta_3,\tau_1,\tau_2)\) the parameter vector.
+The four \(\beta\) coefficients are decimal rates; \(\tau_1,\tau_2>0\)
+are decay scales in years, never payment-time variables.
+A factor loading is a maturity-dependent coefficient multiplying a model
+parameter. For dimensionless argument \(x>0\), define dimensionless loadings
+\begin{equation}\label{eq:loadings}
+L_1(x)=\frac{1-e^{-x}}{x},\qquad L_2(x)=L_1(x)-e^{-x}.
+\end{equation}
+With \(x_1=T/\tau_1\) and \(x_2=T/\tau_2\), the generic NSS decimal rate is
+\begin{equation}\label{eq:nss}
+r_{\mathrm{NSS}}(T;\theta)=\beta_0+\beta_1L_1(x_1)
++\beta_2L_2(x_1)+\beta_3L_2(x_2).
+\end{equation}
+% Map the primary papers' notation and rate interpretation to these coefficients.
+% The API itself attaches no compounding semantics.
+\section{Asymptotic limits and interpretation}\label{sec:nss-limits}
+An asymptotic limit describes the value approached as an argument tends to
+a specified boundary. For fixed positive decay scales,
+\begin{equation}\label{eq:nss-limits}
+\lim_{T\downarrow0}r_{\mathrm{NSS}}(T)=\beta_0+\beta_1,\qquad
+\lim_{T\to\infty}r_{\mathrm{NSS}}(T)=\beta_0.
+\end{equation}
+\subsection{Short and long maturities}
+% T=0 is a mathematical limit, not a supported API input.
+\subsection{Qualitative parameter interpretation}
+% beta0: long limit; beta1: short-limit offset, not derivative at zero.
+% beta2/beta3: overlapping hump/trough contributions; taus control scales.
+% Distinct loadings need not produce separate visible humps.
+\section{Numerical stability near zero maturity}\label{sec:nss-stability}
+% Define cancellation, floating-point arithmetic and truncation before use.
+% Switch x<1e-3: separate polynomials through x^5 with O(x^6) remainder.
+% Otherwise -expm1(-x)/x then L1-exp(-x); stable L1 alone cannot protect L2.
+\plan{Use independent 90-digit comparisons and the principles of
+\textcite{higham2002}. Place derivations in \cref{sec:app-nss}
+and comparisons in \cref{sec:verify-nss}.}
+\section{Calibration objective and residuals}\label{sec:calibration}
+Calibration means selecting parameters to fit supplied observations.
+Let \(n\) be the observation count, \(u_\ell>0\) observation maturity in years,
+and \(z_\ell\) its decimal rate, for \(\ell=1,\ldots,n\).
+The residual \(e_\ell\) is observed minus fitted rate.
+Define the residual sum of squares \(S(\theta)\), feasible parameter set
+\(\Theta\), fitted parameter vector \(\widehat\theta\), and
+root mean squared error (RMSE) by
+\begin{align}
+e_\ell(\theta)&=z_\ell-r_{\mathrm{NSS}}(u_\ell;\theta),&
+S(\theta)&=\sum_{\ell=1}^{n}e_\ell(\theta)^2,\label{eq:residuals}\\
+\Theta&=\mathbb R^4\times[0.01,100]^2,&
+\text{objective: }&\min_{\theta\in\Theta}S(\theta),\label{eq:nss-objective}\\
+\mathrm{RMSE}&=\sqrt{\frac{S(\widehat\theta)}n},&
+\mathrm{RMSE}_{\bp}&=10^4\mathrm{RMSE}.\label{eq:rmse}
+\end{align}
+Here \(\mathbb R\) denotes the real numbers. The decay bounds in \(\Theta\) are in years. Least squares minimises squared
+residuals; joint fitting is nonlinear because decay scales enter exponentials.
+The returned \(\widehat\theta\) is a selected numerical candidate,
+not an assertion that the global minimum has been found.
+% At least six distinct maturities; repeated observations receive equal weight.
+\subsection{Nonlinear least squares}
+% Define nonlinear optimisation and local minimum before algorithm details.
+% Residuals scaled to 10^4 e_l; SciPy linear-loss cost is (10^8/2) S.
+% Constant scaling preserves mathematical minimisers, not solver trajectories.
+\plan{Introduce local numerical optimisation using
+\textcite{nocedal2006,branch1999}; settings belong in \cref{sec:optimiser}.}
+\subsection{Deterministic multiple starting values}
+% Six fixed tau pairs; linear beta initialisation then JOINT six-parameter fit.
+% Not variable projection. Successful finite bounded candidates eligible;
+% lowest decimal SSE wins, earlier start breaks exact ties, all failures raise error.
+\subsection{Residual interpretation and reporting}
+% In-sample rate RMSE is neither price fit nor forecast error.
+\section{Identification and calibration limitations}\label{sec:identification}
+% Define identification and weak identification. Flat curve with zero beta1/2/3
+% leaves taus unidentified; equal taus makes only beta2+beta3 identifiable.
+% Six distinct maturities do not establish uniqueness or global optimality.
+\plan{Use \textcite{gilli2010} for conditioning and multiple optima;
+its alternative optimiser is literature context, not the engine's algorithm.}
+\section{Generic rate fitting and zero-curve interpretation}\label{sec:nss-meaning}
+% Par-style observations remain par-style after fitting. Explain bootstrap
+% concept in words only; no coupon stripping or price-based inference in engine.
+\plan{Use \textcite{bis2005,gurkaynak2007} to distinguish fitting from a
+financially justified zero curve. The risk illustration explicitly assigns
+a continuous-zero interpretation to the fitted illustrative rates.}

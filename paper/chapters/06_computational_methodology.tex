@@ -1,0 +1,69 @@
+\chapter{Computational methodology}\label{ch:computation}
+\section{Research design and computational role}
+% Separate modelling assumptions, algorithms and evidence. Python's readable
+% formulas and scientific ecosystem support transparency, not a proof of correctness.
+\plan{Describe a deterministic computational study of the methods in
+\cref{ch:bonds,ch:nss,ch:risk}, using the existing engine as its implementation
+and verification vehicle.}
+\section{High-level organisation and transparency}
+% Describe conceptual responsibilities rather than class-by-class documentation.
+\subsection{Cash flows and nominal-yield analytics}
+% bonds.py: immutable bond, maturity-anchored schedule, explicit finite sums.
+\subsection{Parametric curve evaluation and calibration}
+% curves.py: stable model evaluation, fitting and plotting.
+\subsection{Continuous-zero valuation and curve perturbations}
+% risk.py: shared contractual schedule, separate discount factors and time basis.
+% YTM pricing is not an internal stage of curve pricing.
+\section{Numerical libraries and arithmetic}\label{sec:arithmetic}
+% Define binary64 rounding, cancellation, conditioning and stability.
+% NumPy arrays/design matrix/linear least squares/exponentials; SciPy nonlinear
+% least squares; matplotlib curve figure; dateutil calendar-month arithmetic.
+% pandas is declared but unused by these modules/CLI: do not invent a role.
+\plan{Cite libraries for their actual numerical roles
+\parencite{harris2020,virtanen2020}; use \textcite{higham2002} for rounding
+and the distinction between problem conditioning and algorithmic stability.}
+\section{Calibration algorithm and stopping criteria}\label{sec:optimiser}
+% Explain local minimum/nonlinear least squares before algorithm details.
+% Installed defaults: Trust Region Reflective, linear loss, two-point numerical
+% Jacobian. Branch et al. is background, not a claim that every method in it is used.
+\plan{Discuss the algorithm with \textcite{scipyLeastSquares,branch1999,nocedal2006}.
+The inspected online manual is version 1.18.0; execution uses 1.18.1.
+Confirm defaults against the installed signature during reproduction.}
+\begin{enumerate}
+\item Initialise decay scales at \((0.5,2),(1,5),(2,10),(5,1),(10,3),(3,15)\)
+years; initialise the four coefficients by linear least squares at each start.
+\item Jointly optimise all six parameters, with unbounded coefficients and
+decay bounds \([0.01,100]\) years; scale residuals to basis points.
+\item Use Jacobian-based scaling, \texttt{ftol=xtol=gtol=1e-10} and
+\texttt{max\_nfev=3000} per start.
+\item Select the successful finite bounded candidate with the smallest decimal
+residual sum of squares; exact ties retain the earlier start.
+\end{enumerate}
+% Define ftol/xtol/gtol as distinct stopping criteria, not financial error bounds.
+% nfev concerns the selected run, excluding numerical-Jacobian residual calls.
+% All-start failure raises RuntimeError. Do not claim a global optimum.
+\section{Deterministic tests and independent calculations}\label{sec:test-method}
+% Define deterministic test, reference calculation, finite/central difference,
+% truncation error and tolerance. Existing tests and report scripts are distinct.
+\subsection{Analytical identities and reference construction}
+% Independently specify cash flows and dates; use Decimal exponential NSS reference.
+\subsection{Error measures and tolerances}\label{sec:tolerances}
+Let \(a_{\mathrm{num}}\) be a computed scalar and \(a_{\mathrm{ref}}\) its
+reference. Absolute tolerance \(\varepsilon_{\mathrm{abs}}\) has the scalar's
+units; relative tolerance \(\varepsilon_{\mathrm{rel}}\) is dimensionless.
+A common comparison rule is
+\begin{equation}\label{eq:tolerance}
+|a_{\mathrm{num}}-a_{\mathrm{ref}}|
+\leq\varepsilon_{\mathrm{abs}}+\varepsilon_{\mathrm{rel}}|a_{\mathrm{ref}}|.
+\end{equation}
+% Explain errors near zero; state each test's actual rule rather than assuming
+% all frameworks implement this rule. Solver stopping and test tolerance differ.
+\section{Illustrative offline observations}\label{sec:offline-data}
+% Ten invented pairs in examples/illustrative_curve.csv. The file has no
+% compounding semantics; the risk example explicitly interprets the fit as zeros.
+\section{Reproducibility and environment control}
+% Python>=3.12; existing dependencies only. Offline execution after setup.
+% Deterministic starts provide same-environment repeatability, not cross-version
+% bitwise guarantees. Dependencies are not locked.
+\plan{Put Windows PowerShell commands and environment metadata in
+\cref{app:reproducibility}; retain methodological rationale here.}

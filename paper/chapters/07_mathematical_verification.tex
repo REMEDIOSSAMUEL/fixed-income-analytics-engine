@@ -1,0 +1,103 @@
+\chapter{Mathematical verification}\label{ch:verification}
+\section{Evidence base and meaning of verification}\label{sec:verify-basis}
+\plan{Base this chapter directly on \path{paper/verification_report.tex}.
+The report audits revision \texttt{7eee019} and was committed as
+\texttt{a1dde66}. Financial source, tests and illustrative data are identical
+between these revisions. Preserve the report as an independent record;
+distinguish real-arithmetic identities from finite numerical evidence.}
+% Executed 13 September 2026, finalised 14 September. Do not invent external
+% authorship, a DOI or peer-review status for this internal record.
+\section{Exact bond identities}\label{sec:verify-bonds}
+% Report sections: Fixed-rate bond foundations and fractional-period pricing;
+% Par-bond identity; First derivative and duration; Independent numerical
+% duration and convexity checks; YTM DV01.
+\subsection{Accrual, coupon boundaries and par}
+% Independent dates/counts/AI before/on/after coupon; annual/semiannual par.
+\subsection{First and second derivatives}
+% Differentiate the finite sum; lengthy algebra goes to Appendix A.
+\section{Finite differences and convergence}\label{sec:verify-differences}
+A finite difference approximates a derivative using displaced function
+values. A central difference uses both signs about the same point.
+Truncation error arises from omitted Taylor terms, before rounding.
+\begin{align}
+\frac{P(\yytm+h)-P(\yytm-h)}{2h}
+ &=P'(\yytm)+O(h^2),\label{eq:central-first}\\
+\frac{P(\yytm+h)-2P(\yytm)+P(\yytm-h)}{h^2}
+ &=P''(\yytm)+O(h^2).\label{eq:central-second}
+\end{align}
+% Report: seven h values 1e-2,...,1e-8 and an independent reference price.
+% Preserve cancellation-driven deterioration at very small steps.
+\plan{Explain truncation versus rounding \parencite{higham2002};
+transfer the report's values to \cref{tab:convergence} after transcription checks.}
+\begin{table}[htbp]
+\centering\small
+\caption{Planned finite-difference convergence comparison}\label{tab:convergence}
+\begin{tabular}{@{}L{0.18\textwidth}L{0.34\textwidth}L{0.40\textwidth}@{}}
+\toprule
+Input & Estimates & Comparisons\\
+\midrule
+Decimal step \(h\) & Central duration (years); central convexity (years squared)
+& Analytical reference; signed and absolute errors in corresponding units\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize Planned source: independent verification record,
+section on independent numerical duration and convexity checks.}
+\end{table}
+\section{NSS asymptotics and numerical stability}\label{sec:verify-nss}
+% Report: NSS model, analytical limits, and numerical stability.
+\subsection{Short- and long-maturity limits}
+% Distinguish limits from unsupported T=0.
+\subsection{Loadings near the numerical switch}
+% Independent 90-digit original exponentials, isolated L2 and x near 1e-3.
+% Tiny positive arguments down to 1e-24; equality after binary64 conversion
+% does not establish zero error against exact arithmetic.
+\section{Independent synthetic calibration}\label{sec:verify-calibration}
+% Report: NSS calibration and independent synthetic fit.
+% 40 geometric maturities .05--40 years, theta=(.04,-.025,.03,-.012,1.4,6.5),
+% independent noiseless observations; 1001-point comparison grid.
+% RMSE, observation/grid maximum error, residual sign, selected status.
+% Parameter proximity is an observation, not a guarantee of identification.
+\section{Zero discounting and shock verification}\label{sec:verify-zero}
+% Report: Continuous-zero pricing and parallel shock monotonicity;
+% Piecewise-linear shocks. Independent three-payment flat-curve sum, dates,
+% leap-day treatment, anchors/midpoints/tails, continuity and monotonicity.
+\section{Key-rate partition and reconciliation}\label{sec:verify-keys}
+% Report: Key-rate basis and partition of unity; Key-rate DV01, parallel
+% DV01, and reconciliation. All-maturity proof and 100008-point check.
+\subsection{Proof and independent numerical basis}
+% Treat four maturity regions and single key; independent construction avoids np.interp.
+\subsection{Full repricing and bump-size checks}
+% Independent key prices, cubic leading term, fifth-order bound; h=2e-4,1e-4,5e-5.
+\plan{Use the existing record's bump checks; variable bumps were independent
+calculations, not an exposed API feature. See \cref{sec:app-reconciliation}.}
+\section{Synthesis of evidence and limits of inference}
+\begin{table}[htbp]
+\centering\small
+\caption{Verification evidence and dissertation destinations}\label{tab:verification-map}
+\begin{tabular}{@{}L{0.23\textwidth}L{0.38\textwidth}L{0.29\textwidth}@{}}
+\toprule
+Object & Independent evidence & Destination\\
+\midrule
+Par, accrual, derivatives & Geometric identity; explicit dates and finite sums
+& \cref{sec:verify-bonds,sec:app-derivatives}\\
+DV01/convergence & Central repricing; seven steps
+& \cref{sec:verify-differences,sec:app-dv01}\\
+NSS loadings/limits & Series and 90-digit references
+& \cref{sec:verify-nss,sec:app-nss}\\
+Synthetic fit & 40 observations; 1,001 grid maturities
+& \cref{sec:verify-calibration}\\
+Zero price/shocks & Dated exponential sum; interpolation
+& \cref{sec:verify-zero}\\
+Key basis & Piecewise proof; 100,008 points
+& \cref{sec:app-partition}\\
+Key/parallel DV01 & Independent repricing; cubic term
+& \cref{sec:app-reconciliation,tab:key-results}\\
+\bottomrule
+\end{tabular}
+\par\smallskip{\footnotesize Source: independent verification record.
+Counts describe the recorded experiments.}
+\end{table}
+% Plan numerical comparison columns: reference, implementation, difference,
+% units, h if relevant, tolerance/rationale, conclusion.
+% Report baseline 234 passing tests separately from fresh Appendix B validation.
+% No universal accuracy, global optimum, economic validation or production claim.
