@@ -1,7 +1,7 @@
 \chapter{Discussion and limitations}\label{ch:limitations}
-Analytical consistency, independent differences and stable loading evaluation support the stated calculations. They do not eliminate model risk: unsuitable assumptions can produce misleading valuations.
+The derivations and numerical checks support the stated calculations. Model risk remains: unsuitable assumptions can produce misleading valuations.
 
-Regular annual/semiannual coupons exclude irregular first/final payments. There is no holiday calendar, business-day adjustment or embedded optionality; accrual and Actual/365 timing are simplified. YTM compresses maturity-dependent discounting into one rate. The assigned-zero interpretation in \cref{sec:zero-par} lacks instrument-based inference, unlike institutional estimation studies \parencite{gurkaynak2007,anderson2001}.
+The coupon schedule assumes regular annual or semiannual payments and excludes irregular first or final periods. There is no holiday calendar, business-day adjustment or embedded optionality; accrual and Actual/365 timing are simplified. YTM compresses maturity-dependent discounting into one rate. The assigned-zero interpretation in \cref{sec:zero-par} lacks instrument-based inference, unlike institutional estimation studies \parencite{gurkaynak2007,anderson2001}.
 
 The sub-basis-point RMSE measures agreement with the ten inputs used for fitting, not error on unseen observations or statistical uncertainty. Likewise, noiseless synthetic recovery checks the numerical procedure within its own model family, not that family's adequacy for market instruments. The 30-year key's large sensitivity reflects the distant redemption and late coupons, with their exposure allocated by the chosen basis.
 

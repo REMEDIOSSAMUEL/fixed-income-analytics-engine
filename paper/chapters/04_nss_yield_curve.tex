@@ -1,8 +1,8 @@
 \chapter{Nelson--Siegel--Svensson modelling}\label{ch:nss}
 \label{sec:nss-background}\label{sec:nss-equations}
-Discrete maturity observations motivate smooth representation. The Nelson--Siegel model combines level, slope-related and curvature contributions; Svensson adds another curvature contribution, forming Nelson--Siegel--Svensson (NSS) \parencite{nelson1987,svensson1994}. Parameters specify a model member:
-\(\theta=(\beta_0,\beta_1,\beta_2,\beta_3,\tau_1,\tau_2)\):
-the \(\beta\) coefficients are decimal rates and positive decay scales \(\tau_1,\tau_2\) are years. A factor loading is a function of maturity multiplying a coefficient. For either decay scale \(\tau\), dimensionless loadings define the generic decimal rate \(r_{\mathrm{NSS}}\):
+The Nelson--Siegel model combines level, slope-related and curvature contributions. Svensson's extension adds another curvature contribution, giving the Nelson--Siegel--Svensson (NSS) model \parencite{nelson1987,svensson1994}. The parameter vector is
+\(\theta=(\beta_0,\beta_1,\beta_2,\beta_3,\tau_1,\tau_2)\).
+The \(\beta\) coefficients are decimal rates and the positive decay scales \(\tau_1,\tau_2\) are measured in years. A factor loading is a function of maturity multiplying a coefficient. For either decay scale \(\tau\), dimensionless loadings define the generic decimal rate \(r_{\mathrm{NSS}}\):
 \begin{align}
 L_1(T;\tau)&=\frac{1-e^{-T/\tau}}{T/\tau},&
 L_2(T;\tau)&=L_1(T;\tau)-e^{-T/\tau},\label{eq:loadings}\\
@@ -33,6 +33,6 @@ Least squares minimises \(S\), measured in squared decimal rates. At the selecte
 \mathrm{RMSE}_{\bp}=10^4\mathrm{RMSE}.
 \end{equation}
 \label{sec:identification}
-Nonlinear optimisation searches for parameters minimising \(S\); local minima minimise it within a neighbourhood, without ensuring global optimality. Six deterministic starts reduce starting-point dependence (\cref{sec:optimiser}). Excellent fit need not uniquely identify parameters \parencite{gilli2010}: a constant curve leaves decay scales undetermined. If \(\tau_1=\tau_2\), only the sum \(\beta_2+\beta_3\) enters their shared loading. Near equality can therefore produce unstable coefficients even when fitted rates change little.
+Nonlinear optimisation searches for parameters minimising \(S\); local minima minimise it within a neighbourhood, without ensuring global optimality. Six deterministic starts reduce starting-point dependence (\cref{sec:optimiser}). A small fitting error does not imply that parameters are uniquely identified \parencite{gilli2010}: a constant curve leaves decay scales undetermined. If \(\tau_1=\tau_2\), only the sum \(\beta_2+\beta_3\) enters their shared loading. Near equality can therefore produce unstable coefficients even when fitted rates change little.
 \label{sec:nss-meaning}
 The generic rate \(r_{\mathrm{NSS}}\) acquires zero-rate meaning only through the assumption in \cref{sec:zero-par}.

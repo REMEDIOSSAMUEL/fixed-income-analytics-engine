@@ -1,6 +1,6 @@
 \chapter{Interest-rate and curve risk}\label{ch:risk}
 \label{sec:zero-price}
-Return to contractual payments. Actual/365 times \(t_i\) count settlement-to-payment calendar days, including leap days, divided by 365. Zero-discounted present values \(V_i\) and dirty currency price \(P_{\mathrm{zero}}[r]\) are
+The curve-risk calculation discounts each contractual payment separately. Actual/365 times \(t_i\) count settlement-to-payment calendar days, including leap days, divided by 365. Zero-discounted present values \(V_i\) and dirty currency price \(P_{\mathrm{zero}}[r]\) are
 \begin{equation}\label{eq:zero-price}
 t_i=\frac{\operatorname{days}(d_i-d_s)}{365},\qquad
 V_i=CF_i e^{-r(t_i)t_i},\qquad P_{\mathrm{zero}}[r]=\sum_iV_i.
