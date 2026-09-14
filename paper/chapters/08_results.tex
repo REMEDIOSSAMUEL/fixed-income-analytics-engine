@@ -1,5 +1,5 @@
 \chapter{Illustrative numerical results}\label{ch:results}
-Fresh engine calculations use the specifications in \cref{tab:bond-inputs} and illustrative term-structure observations from \path{examples/illustrative_curve.csv}. \Cref{tab:bond-results} identifies a discount bond: its coupon is below YTM. Modified duration implies approximately \(0.423\%\) price loss for a 10 bp rise; positive convexity moderates that loss.
+Fresh engine calculations use the specifications in \cref{tab:bond-inputs} and illustrative term-structure observations from \path{examples/illustrative_curve.csv}. \Cref{tab:bond-results} identifies a discount bond because its clean price is below face value; its coupon is also below YTM. Modified duration implies approximately \(0.423\%\) dirty-price loss for a 10 bp rise; positive convexity moderates that loss.
 
 \begin{table}[htbp]
 \centering\small
@@ -78,7 +78,7 @@ Steepener & 98.699959 & 97.579381 & -1.120578\\
 Flattener & 98.699959 & 99.851766 & +1.151807\\
 \bottomrule
 \end{tabular}
-\par\smallskip{\footnotesize Currency for face 100. Shape anchors are 2/10/30 years: steepener \(-10/0/+10\) bp; flattener \(+10/0/-10\) bp. Cash flows and settlement remain fixed.}
+\par\smallskip{\footnotesize Currency for face 100. Shape anchors are 2/10/30 years: steepener \(-10/0/+10\) bp; flattener \(+10/0/-10\) bp. Cash flows and settlement remain fixed. P\&L is computed before rounding, so subtracting displayed prices may differ by one last-place unit.}
 \resultsource
 \end{table}
 \begin{table}[htbp]

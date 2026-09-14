@@ -10,9 +10,12 @@ Yield to maturity (YTM) is the single rate equating discounted promised payments
 \begin{equation}\label{eq:discount}
 DF(T)=\exp[-r(T)T].
 \end{equation}
-A par yield is the coupon rate making a specified bond worth face value. The term structure describes rates across maturities, or tenors; a yield curve represents it.
+A par yield is the annual coupon rate making a specified bond worth face value under given discount factors, conventionally at a coupon-date settlement with no accrual. It depends on the whole payment schedule, whereas a spot rate discounts one maturity. The term structure describes rates across maturities, or tenors; a yield curve represents it under a stated rate convention.
 
 Treasury constant-maturity (CMT)/par-style yields differ from zero rates. Fitting them does not bootstrap zeros: bootstrapping infers discount factors from instrument prices and cash flows \parencite{bis2005}. Here the invented observations have no intrinsic compounding convention; risk deliberately interprets fitted rates as continuous zeros, an educational assumption.
 
 \label{sec:units}
 All rates are decimal: \(0.05=5\%\). One basis point (bp) equals \(0.01\) percentage point, or \(0.0001\) decimal.
+
+\section{Literature and methodological position}
+The literature separates curve representation from estimation using instruments. Nelson--Siegel provides a compact curve family; Svensson adds flexibility through a second curvature component \parencite{nelson1987,svensson1994}. This flexibility is useful for representing shapes, but it does not establish that six parameters are necessary for these ten illustrative observations. Institutional approaches also differ: Anderson and Sleath use a spline-based method, while G\"urkaynak, Sack and Wright estimate a discount function from Treasury instruments \parencite{anderson2001,gurkaynak2007}. Such studies address instrument selection and estimation choices absent here. The present study assesses an existing NSS implementation; it neither compares competing curve families nor establishes empirical superiority. Its research contribution is therefore reproducible verification under specified conventions.
