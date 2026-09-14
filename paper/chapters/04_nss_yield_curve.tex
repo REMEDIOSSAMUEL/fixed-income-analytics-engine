@@ -19,7 +19,7 @@ r_{\mathrm{NSS}}(\infty)=\beta_0.
 Thus \(\beta_0\) sets the long limit, \(\beta_1\) the short offset, and \(\beta_2,\beta_3\) overlapping hump/trough contributions; decay scales locate the individual loadings, not necessarily turning points of their sum. These are descriptive roles, not structurally unique economic factors.
 
 \label{sec:nss-stability}
-For dimensionless \(x=T/\tau\), subtracting nearly equal rounded numbers in \(1-e^{-x}\) causes cancellation. The implementation uses \texttt{expm1}, accurately evaluating \(e^{-x}-1\), and separate fifth-degree loading expansions below \(x=10^{-3}\) \parencite{higham2002}.
+For dimensionless \(x=T/\tau\), subtracting nearly equal rounded numbers in \(1-e^{-x}\) causes cancellation \parencite{higham2002}. The implementation uses \texttt{expm1}, accurately evaluating \(e^{-x}-1\), and separate fifth-degree loading expansions below \(x=10^{-3}\).
 
 \section{Calibration and interpretation}\label{sec:calibration}
 Calibration selects parameters fitting observations. For \(n\) observations \((u_\ell,z_\ell)\), indexed by \(\ell\), maturities are years and rates decimal. Residuals \(e_\ell\) are observed minus fitted:
