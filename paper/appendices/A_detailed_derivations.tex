@@ -1,62 +1,195 @@
 \chapter{Detailed mathematical derivations}\label{app:derivations}
-% Adapt the independent report's derivations in original exposition.
-% Every added symbol must enter frontmatter/notation.tex and be defined here.
-\section{Par-bond identity}\label{sec:app-par}
-% Report: Par-bond identity: geometric-series proof.
-% At coupon-date settlement q_i=i, c=y_YTM. Sum the geometric series using
-% B already defined in Chapter 3; treat c=y_YTM=0 separately.
-% Explain why this does not establish dirty par between coupon dates.
-\section{First derivative, modified duration and second derivative}\label{sec:app-derivatives}
-% Report: First derivative and duration; Independent numerical duration and convexity.
-% Differentiate B^{-q_i} with fixed fractional q_i twice. Show each 1/m factor,
-% derive -P'/P=D_Mac/B and P''/P=convexity; no 1/2 in convexity.
-\section{Central-difference DV01 and Taylor remainders}\label{sec:app-dv01}
-% Report: YTM DV01: repricing versus duration approximation.
-% Explain why down-minus-up cancels even powers. Distinguish division by 2
-% from derivative division by 2h; absolute DV01 discrepancy starts at h^3.
-Define \(P^{(p)}\) as the \(p\)-th derivative with respect to annual decimal
-YTM, where \(p\) is a positive integer.
-\begin{equation}
-\frac{P(\yytm-h)-P(\yytm+h)}2
-=-hP'(\yytm)-\frac{h^3}{6}P^{(3)}(\yytm)+O(h^5).
+The arguments below restate the independent verification record in the notation of \cref{tab:notation}. Equalities are over real arithmetic unless a remainder is displayed. Cash flows, settlement and schedules remain fixed when rates change.
+
+\section{The par-bond identity}\label{sec:app-par}
+On a coupon date, \(\alpha=0\), \(q_i=i\) and \(AI=0\). If \(c=\yytm\), then \(C=F(B-1)\). Thus \cref{eq:ytm-price} becomes
+\begin{equation}\label{eq:app-par-sum}
+P=F(B-1)\sum_{i=1}^N B^{-i}+FB^{-N}.
 \end{equation}
-% Keep the derivation, with O(h^2) derivative truncation and rounding discussion,
-% separate from numeric step-size tables in Chapter 7.
-\section{NSS expansions and asymptotic limits}\label{sec:app-nss}
-% Report: NSS model, analytical limits, and numerical stability.
-% Derive from exponential series, separately expand L2 to avoid cancellation.
+For \(B\ne1\), the geometric sum telescopes:
+\begin{align*}
+(B-1)\sum_{i=1}^N B^{-i}
+&=\sum_{i=1}^N(B^{1-i}-B^{-i})\\
+&=(1-B^{-1})+(B^{-1}-B^{-2})+\cdots
+ +(B^{1-N}-B^{-N})\\
+&=1-B^{-N}.
+\end{align*}
+Substitution into \cref{eq:app-par-sum} gives \(P=F(1-B^{-N})+FB^{-N}=F\).
+For \(B=1\), \(c=\yytm=0\); coupons vanish and undiscounted redemption gives \(F\). Clean and dirty prices coincide because accrual is zero.
+
+More generally, at coupon-date settlement,
+\begin{equation}\label{eq:app-premium}
+P-F=\frac{F(c-\yytm)}m\sum_{i=1}^N B^{-i}.
+\end{equation}
+Consequently coupon above YTM implies premium, and coupon below YTM implies discount, at this settlement boundary. Between coupon dates with \(c=\yytm\), every present value acquires a common multiplier \(B^\alpha\). Hence \(P_{\mathrm{dirty}}=FB^\alpha\) and \(P_{\mathrm{clean}}=FB^\alpha-C\alpha\), which need not equal \(F\). Fractional compounding and linear accrual are different operations.
+
+\section{Price derivatives and duration}\label{sec:app-derivatives}
+Because \(B=1+\yytm/m>0\), real powers are differentiable even for noninteger \(q_i\). The chain rule gives
+\[
+\frac{d B^{-q_i}}{d\yytm}
+=-q_iB^{-q_i-1}\frac{dB}{d\yytm}
+=-\frac{q_i}{m}B^{-q_i-1}.
+\]
+Differentiating the finite sum term by term, using \(T_i=q_i/m\) and \(PV_i=CF_iB^{-q_i}\),
+\begin{equation}\label{eq:app-duration}
+P'=-\sum_i CF_i\frac{q_i}{m}B^{-q_i-1}
+=-\frac1B\sum_iT_iPV_i
+=-P\frac{D_{\mathrm{Mac}}}{B}.
+\end{equation}
+Dividing by \(-P\) proves \cref{eq:duration}. The weights \(PV_i/P\) are nonnegative and sum to one, so Macaulay duration is a weighted mean of payment times. Positive redemption ensures \(P'<0\). Accrued interest is independent of YTM at fixed settlement; clean price has the same unnormalised derivatives, but normalising by clean price would define different sensitivities.
+
+Differentiating again supplies another \(1/m\) and changes the sign:
+\begin{align*}
+P''&=-\sum_i CF_i\frac{q_i}{m}
+          (-q_i-1)B^{-q_i-2}\frac1m\\
+&=\sum_i CF_i\frac{q_i(q_i+1)}{m^2}B^{-q_i-2}.
+\end{align*}
+Normalisation gives the form evaluated by the engine:
+\begin{equation}\label{eq:app-convexity}
+\mathcal C=\sum_i\frac{PV_i}{P}
+                 \frac{q_i}{mB}\frac{q_i+1}{mB}>0.
+\end{equation}
+Both factors of \(1/m\) express coupon periods in years. The factor \(1/2\) belongs to Taylor's second-order price term, not the definition of convexity. Taylor's theorem at \(\yytm\), divided by \(P\), with \(P'/P=-D_{\mathrm{Mod}}\) and \(P''/P=\mathcal C\), yields \cref{eq:taylor-price} with remainder \(O((\delta y)^3)\).
+
+\section{Central differences and DV01}\label{sec:app-dv01}
+Let \(P^{(p)}\) denote the \(p\)-th derivative with respect to annual decimal YTM, for positive integer order \(p\). For sufficiently small \(h\), both perturbed yields remain inside \(B>0\). Taylor expansion about the same yield gives
+\[
+P(\yytm\pm h)=P\pm hP'+\frac{h^2}{2}P''
+ \pm\frac{h^3}{6}P^{(3)}+\frac{h^4}{24}P^{(4)}+O(h^5).
+\]
+Subtracting the upward price from the downward price cancels the even terms:
+\begin{equation}\label{eq:app-dv01}
+\begin{split}
+\frac{P(\yytm-h)-P(\yytm+h)}2
+&=-hP'-\frac{h^3}{6}P^{(3)}+O(h^5)\\
+&=hPD_{\mathrm{Mod}}-\frac{h^3}{6}P^{(3)}+O(h^5).
+\end{split}
+\end{equation}
+This proves an \(O(h^3)\) absolute finite-bump correction to duration-based DV01. Since
+\[
+P^{(3)}=-\sum_iCF_i\frac{q_i(q_i+1)(q_i+2)}{m^3}B^{-q_i-3}<0,
+\]
+the leading correction is positive. Division by two produces a currency response for the stipulated bump; division by \(2h\) would instead produce a derivative per unit decimal yield.
+
+The central derivative estimates in \cref{tab:derivatives,tab:convergence} obey
 \begin{align}
-L_1(x)&=1-\frac{x}{2}+\frac{x^2}{6}-\frac{x^3}{24}
-+\frac{x^4}{120}-\frac{x^5}{720}+O(x^6),\\
-L_2(x)&=\frac{x}{2}-\frac{x^2}{3}+\frac{x^3}{8}
--\frac{x^4}{30}+\frac{x^5}{144}+O(x^6).
+-\frac{P(\yytm+h)-P(\yytm-h)}{2hP}
+ &=D_{\mathrm{Mod}}-\frac{h^2P^{(3)}}{6P}+O(h^4),\label{eq:central-first}\\
+\frac{P(\yytm+h)-2P+P(\yytm-h)}{h^2P}
+ &=\mathcal C+\frac{h^2P^{(4)}}{12P}+O(h^4).\label{eq:central-second}
 \end{align}
-% Derive short limit beta0+beta1; long limit beta0 and algebraic 1/T decay.
-% Explain beta1 not equal to derivative at zero. Keep API T=0 exclusion explicit.
+Each has second-order truncation error. Machine rounding introduces additional error when nearby prices are subtracted; division by a very small \(h\), especially \(h^2\), amplifies it. Decreasing the step indefinitely need not improve accuracy \parencite{higham2002}. The independent report's references are \(D_{\mathrm{Mod}}=4.231517692026542\) and \(\mathcal C=21.110444849612590\); the tables preserve that record rather than treating engine output as its own reference.
+
+\section{NSS limits and stable loadings}\label{sec:app-nss}
+Write \(x=T/\tau>0\) for either decay scale. Expanding the exponential,
+\[
+e^{-x}=1-x+\frac{x^2}{2}-\frac{x^3}{6}
+ +\frac{x^4}{24}-\frac{x^5}{120}+\frac{x^6}{720}+O(x^7).
+\]
+Subtracting from one, dividing by \(x\), and then subtracting \(e^{-x}\) establishes
+\begin{align}
+L_1(T;\tau)&=1-\frac{x}{2}+\frac{x^2}{6}-\frac{x^3}{24}
+ +\frac{x^4}{120}-\frac{x^5}{720}+O(x^6),\label{eq:series-one}\\
+L_2(T;\tau)&=\frac{x}{2}-\frac{x^2}{3}+\frac{x^3}{8}
+ -\frac{x^4}{30}+\frac{x^5}{144}+O(x^6).\label{eq:series-two}
+\end{align}
+The constant terms give \(L_1\to1\) and \(L_2\to0\) as \(T\downarrow0\), proving the short limit in \cref{eq:nss-limits}. These are limits, not evaluations at zero: the public curve interface requires positive maturity.
+
+At large \(T\), fixed positive decay scales give \(e^{-T/\tau}\to0\) and
+\(0<L_1(T;\tau)<\tau/T\to0\). Hence \(L_2\to0\) and \(r_{\mathrm{NSS}}\to\beta_0\). More precisely,
+\begin{equation}\label{eq:app-long}
+r_{\mathrm{NSS}}(T)=\beta_0+
+ \frac{(\beta_1+\beta_2)\tau_1+\beta_3\tau_2}{T}
+ +\text{exponentially decaying terms}.
+\end{equation}
+The short-limit offset \(\beta_1\) is not the derivative at zero. The linear terms in \cref{eq:series-one,eq:series-two} give
+\[
+r_{\mathrm{NSS}}'(0^+)
+=\frac{-\beta_1+\beta_2}{2\tau_1}+\frac{\beta_3}{2\tau_2},
+\]
+where this prime denotes the maturity derivative, in decimal rate per year, rather than a YTM price derivative.
+
+The small-\(x\) polynomials avoid cancellation in both \(1-e^{-x}\) and \(L_1-e^{-x}\). Above the \(10^{-3}\) switch the engine evaluates \(L_1=-\operatorname{expm1}(-x)/x\). The fifth-degree expressions have \(O(x^6)\) absolute remainders; the original exponential model remains the mathematical specification.
+
 \section{Key-rate basis and partition of unity}\label{sec:app-partition}
-% Report: Key-rate basis and partition of unity.
-% Write first/last basis definitions with constant tails, each interior
-% triangular basis and the single-key case. Four exhaustive cases:
-% below first key, exactly at a key, between keys, above last key.
-\begin{equation}
+For ordered keys \(0<k_1<\cdots<k_J\), \(J\geq2\), the endpoint functions are
+\begin{align}
+b_1(T)&=\begin{cases}
+1,&0<T\leq k_1,\\
+(k_2-T)/(k_2-k_1),&k_1<T<k_2,\\
+0,&T\geq k_2,
+\end{cases}\label{eq:first-basis}\\
+b_J(T)&=\begin{cases}
+0,&T\leq k_{J-1},\\
+(T-k_{J-1})/(k_J-k_{J-1}),&k_{J-1}<T<k_J,\\
+1,&T\geq k_J.
+\end{cases}\label{eq:last-basis}
+\end{align}
+For an interior key \(1<j<J\),
+\begin{equation}\label{eq:interior-basis}
+b_j(T)=\begin{cases}
+(T-k_{j-1})/(k_j-k_{j-1}),&k_{j-1}<T\leq k_j,\\
+(k_{j+1}-T)/(k_{j+1}-k_j),&k_j<T<k_{j+1},\\
+0,&\text{otherwise}.
+\end{cases}
+\end{equation}
+At any key only its own weight is one; other weights vanish. Below the first key only \(b_1=1\), and above the last only \(b_J=1\). Between adjacent keys only their two basis functions are nonzero:
+\begin{equation}\label{eq:app-partition}
 b_j(T)+b_{j+1}(T)
 =\frac{k_{j+1}-T}{k_{j+1}-k_j}
-+\frac{T-k_j}{k_{j+1}-k_j}=1
-\quad(k_j<T<k_{j+1}).
++\frac{T-k_j}{k_{j+1}-k_j}=1.
 \end{equation}
-% Adjacent bases only are nonzero inside an interval. Explicit endpoint proof
-% is necessary; a plot or sampled sum is not the all-maturity proof.
-\section{First-order reconciliation and finite-bump correction}\label{sec:app-reconciliation}
-% Report: Key-rate DV01, parallel DV01, and reconciliation.
-% Derive each directional derivative of the price functional, then sum using
-% partition. Expand sinh to prove the cubic leading discrepancy.
-Let \(\Delta_3\) denote the cubic term in \cref{eq:reconciliation},
-and define the hyperbolic cosine by \(\cosh(x)=(e^x+e^{-x})/2\).
-For \(h>0\) and nonnegative present values, the report derives
-\begin{equation}
+These cases exhaust positive maturities and prove \cref{eq:partition}. Each weight is nonnegative and continuous, with possibly discontinuous slopes. For one key, \(b_1(T)=1\) everywhere. This proof includes the constant tails, which cannot be inferred from interpolation inside the key range alone.
+
+\section{First-order and finite-bump reconciliation}\label{sec:app-reconciliation}
+Let \(u_j\) be a decimal amplitude applied to basis \(j\). With \(V_i\) fixed at the base curve,
+\[
+P_{\mathrm{zero}}[r+u_jb_j]=\sum_i V_i e^{-u_jt_i b_j(t_i)}.
+\]
+Differentiating at zero and summing over keys gives
+\begin{equation}\label{eq:app-linear-risk}
+\sum_j\left(-\left.\frac{\partial P_{\mathrm{zero}}[r+u_jb_j]}{\partial u_j}\right|_{u_j=0}\right)
+=\sum_i V_it_i\sum_j b_j(t_i)
+=\sum_iV_it_i.
+\end{equation}
+This equals the negative parallel derivative at zero shock in \cref{eq:parallel-sign}. Differentiating that price again gives \(\sum_i t_i^2V_i e^{-\delta r t_i}>0\), establishing positive curvature for parallel zero-rate shifts. Multiplication by \(h\) proves exact first-order DV01 additivity.
+
+Define bumped curves \(r_j^\pm(T)=r(T)\pm hb_j(T)\) and dirty prices \(P_j^\pm=P_{\mathrm{zero}}[r_j^\pm]\). For dimensionless argument \(x\), hyperbolic sine is \(\sinh(x)=(e^x-e^{-x})/2\). Central repricing gives
+\begin{align}
+\mathrm{KRDV01}_j&=\frac{P_j^--P_j^+}{2}
+=\sum_iV_i\sinh(ht_ib_j(t_i)),\label{eq:app-key-sinh}\\
+\mathrm{DV01}_{\parallel}&=\sum_iV_i\sinh(ht_i).\label{eq:app-parallel-sinh}
+\end{align}
+The series \(\sinh(x)=x+x^3/6+x^5/120+\cdots\) contains only odd powers. Substitution into summed key DV01 minus parallel DV01 cancels linear terms by the partition. The resulting cubic term, denoted \(\Delta_3\), is
+\begin{equation}\label{eq:reconciliation}
+\Delta_{\mathrm{KR}}=
+\underbrace{\frac{h^3}{6}\sum_iV_it_i^3
+ \left(\sum_jb_j(t_i)^3-1\right)}_{\Delta_3}
++O(h^5).
+\end{equation}
+For integer \(p>1\), \(0\leq b_j\leq1\) implies \(b_j^p\leq b_j\), so \(\sum_jb_j^p\leq1\). Every nonzero odd-order correction to the difference is nonpositive. Thus \(\Delta_{\mathrm{KR}}\leq0\) in real arithmetic, strictly negative when at least one positive-value payment is split between neighbouring keys. A single key, or payments supported entirely by individual keys, gives equality.
+
+Define hyperbolic cosine \(\cosh(x)=(e^x+e^{-x})/2\). For \(x\geq0\), Taylor's theorem bounds the tail of \(\sinh(x)\) after its cubic term by \(x^5\cosh(x)/120\). Each reconciliation coefficient is multiplied by \(1-\sum_j b_j^p\in[0,1]\); the absolute omitted difference cannot exceed that positive tail. Consequently
+\begin{equation}\label{eq:app-remainder}
 |\Delta_{\mathrm{KR}}-\Delta_3|
-\leq\sum_i V_i\frac{(ht_i)^5\cosh(ht_i)}{120}.
+\leq\sum_iV_i\frac{(ht_i)^5\cosh(ht_i)}{120}.
 \end{equation}
-% Prove with 0<=b_j<=1 and sum b_j=1; sum b_j^p<=1 for p>1.
-% Explain Delta_KR<=0 in real arithmetic and when equality is possible.
-% Floating-point subtraction adds rounding beyond this analytic remainder bound.
+This bounds the analytic remainder; numerical subtraction adds rounding. For the illustrative risk bond the report records \(\Delta_3=-2.9343412800\times10^{-8}\) currency and bound \(7.09\times10^{-14}\). Independent hyperbolic-sine calculations give differences
+\(-2.34747670\times10^{-7}\), \(-2.93434243\times10^{-8}\), and
+\(-3.66792696\times10^{-9}\) for \(h=2\times10^{-4},10^{-4},5\times10^{-5}\), respectively. Their near-eightfold reductions confirm the cubic leading behaviour. The engine's fixed one-basis-point result in \cref{tab:key-results} is consistent with this analysis.
+
+\section{Independent numerical constructions}\label{sec:app-reference-inputs}
+The derivative reference uses explicit payment dates: 15 July 2025, each January and July in 2026--2029, and 15 January 2030. Settlement is 15 April 2025, giving \(\alpha=90/181\). Nine coupons of 2 precede redemption plus coupon of 102; \(m=2\) and \(\yytm=0.045\). A separate finite-sum price function, rather than the engine's pricing method, supplies the numerical differences.
+
+For the synthetic NSS check, the known parameter vector is
+\[\theta=(0.04,-0.025,0.03,-0.012,1.4,6.5),\]
+with coefficient and decay units as in \cref{ch:nss}. Forty geometrically spaced maturities from 0.05 to 40 years receive rates evaluated from original exponentials using 90-digit decimal arithmetic, then converted to binary64 floating point. Public calibration fits those observations; a further 1,001-point geometric grid checks interpolation. No observation noise is added, although representation rounding remains.
+
+The flat-zero reference uses settlement 1 April 2024, maturity 1 July 2025, coupon 6\%, semiannual payments and face 100. Its explicitly specified payments are 3 on 1 July 2024, 3 on 1 January 2025 and 103 at maturity. At continuous annual zero rate 0.045, the independent value is
+\[
+3e^{-0.045(91/365)}+3e^{-0.045(275/365)}
+ +103e^{-0.045(456/365)}=103.23571061465249
+\]
+to displayed precision. No engine-generated schedule enters this reference.
+
+The dense basis check takes the sorted unique union of 100,001 equally spaced maturities from 0.01 to 100 years, keys \(2,5,10,30\), and midpoints \(3.5,7.5,20\). Independent piecewise formulas avoid calling the implementation's interpolation routine. This distinguishes independent reference construction from merely repeating the same implementation.

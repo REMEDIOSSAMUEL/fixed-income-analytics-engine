@@ -1,19 +1,13 @@
-\chapter*{Terminology and first-use plan}
-\addcontentsline{toc}{chapter}{Terminology and first-use plan}
-% These are author-written concise definitions, not quotations.
-% Every term must be defined again in ordinary prose in the designated section
-% before sustained use. Expand the conceptual definitions for a finance novice.
-\noindent The definitions below form a drafting framework for a quantitatively
-literate reader without prior fixed-income study. They supplement, rather than
-replace, first-use explanations in the chapters. Background reading is allocated
-in \path{paper/bibliography_verification.md}.
+\chapter*{Terminology}
+\addcontentsline{toc}{chapter}{Terminology}
+\noindent These definitions supplement the concise explanations in the chapters.
 \begingroup\small\singlespacing
 \setlength{\tabcolsep}{4pt}
 \begin{longtable}{@{}L{0.22\textwidth}L{0.58\textwidth}L{0.12\textwidth}@{}}
 \caption{Terminology, readable definitions and first-use locations}\label{tab:glossary}\\
-\toprule Term & Working definition & First use\\ \midrule
+\toprule Term & Definition & First use\\ \midrule
 \endfirsthead
-\toprule Term & Working definition & First use\\ \midrule
+\toprule Term & Definition & First use\\ \midrule
 \endhead
 \bottomrule\endfoot
 Bond & A debt contract specifying payments from an issuer to its holder. & \ref{sec:contract}\\
@@ -63,7 +57,7 @@ Svensson extension & The addition of a second curvature loading with its own coe
 Factor loading & A function of maturity multiplying a model coefficient; a loading need not be a directly observed economic variable. & \ref{sec:nss-equations}\\
 Asymptotic limit & A value approached by a function as its argument tends to a boundary such as zero or infinity. & \ref{sec:nss-limits}\\
 Identification & The ability of observations and model restrictions to distinguish parameter values; weak identification means different values can fit very similarly. & \ref{sec:identification}\\
-Bootstrap & Sequential inference of discount factors from instrument prices and cash flows under stated conventions; not implemented here. & \ref{sec:nss-meaning}\\
+Bootstrap & Sequential inference of discount factors from instrument prices and cash flows under stated conventions; not implemented here. & \ref{sec:zero-par}\\
 Parallel shift & The same additive rate change at every maturity. & \ref{sec:parallel}\\
 Full repricing & Recomputing all discounted cash-flow values under a shocked rate or curve, instead of using a local linear approximation. & \ref{sec:parallel}\\
 Scenario P\&L & The shocked price minus base price, holding settlement and cash flows fixed; it is not a realised investment return. & \ref{sec:parallel}\\
@@ -78,10 +72,10 @@ Finite difference & An approximation to a derivative constructed from function v
 Central difference & A finite difference using symmetric positive and negative perturbations around the evaluation point. & \ref{sec:test-method}\\
 Truncation error & The error due to omitting terms in an approximation, distinct from floating-point rounding. & \ref{sec:test-method}\\
 Numerical tolerance & A specified threshold for accepting a comparison or stopping an algorithm; it must be interpreted in its own units and context. & \ref{sec:tolerances}\\
-Floating-point rounding & Representing a numerical result by a nearby value from the finite set available to the machine. & \ref{sec:arithmetic}\\
-Cancellation & Loss of relative accuracy when nearly equal rounded quantities are subtracted. & \ref{sec:arithmetic}\\
+Floating-point rounding & Representing a numerical result by a nearby value from the finite set available to the machine. & \ref{sec:nss-stability}\\
+Cancellation & Loss of relative accuracy when nearly equal rounded quantities are subtracted. & \ref{sec:nss-stability}\\
 Conditioning & Sensitivity of the exact solution of a mathematical problem to small input perturbations. & \ref{sec:arithmetic}\\
-Numerical stability & The extent to which an algorithm controls the effects of rounding and related computational perturbations. & \ref{sec:arithmetic}\\
+Numerical stability & The extent to which an algorithm controls the effects of rounding and related computational perturbations. & \ref{sec:nss-stability}\\
 Deterministic test & A check with fixed inputs and defined expected properties, designed to be repeatable in a specified environment. & \ref{sec:test-method}\\
 Actual/365 timing & Actual elapsed calendar days, including leap days, divided by 365; the denominator does not change in leap years. & \ref{sec:zero-price}\\
 Model risk & The risk of misleading conclusions caused by an unsuitable model, interpretation or set of assumptions. & \ref{ch:limitations}\\

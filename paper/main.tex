@@ -18,7 +18,7 @@
 \hypersetup{
   pdftitle={A Fixed-Income Analytics Engine: Mathematical Foundations,
   Numerical Verification, Yield-Curve Modelling and Interest-Rate Risk},
-  pdfsubject={Dissertation architecture for an educational computational study}
+  pdfsubject={Fixed-rate valuation, numerical verification and deterministic curve risk}
 }
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \onehalfspacing
@@ -29,7 +29,6 @@
 \numberwithin{equation}{chapter}
 \newcommand{\yytm}{y_{\mathrm{YTM}}}
 \newcommand{\bp}{\mathrm{bp}}
-\newcommand{\plan}[1]{\par\noindent{\small\color{gray}\textit{Drafting plan:} #1}\par}
 \newcommand{\resultsource}{\par\smallskip{\footnotesize Source: author's calculations using
 the illustrative offline data supplied with the analytics engine.}}
 \begin{document}
@@ -45,31 +44,25 @@ Yield-Curve Modelling and Interest-Rate Risk\par}
 {\large Fixed-rate bond valuation and the
 Nelson--Siegel--Svensson term structure\par}
 \vfill
-{\large Dissertation architecture and research plan\par}
+{\large A computational finance dissertation\par}
 \vspace{6mm}
-Author: \textbf{[Author name to be supplied]}\par
+
 \vspace{12mm}
-{\small Educational computational study; working document.\par
+{\small Educational computational study.\par
 No institutional affiliation or submission is asserted.}
 \end{titlepage}
 \pagenumbering{roman}
 \hypersetup{pageanchor=true}
 \chapter*{Study status and declaration note}
 \addcontentsline{toc}{chapter}{Study status and declaration note}
-This document establishes the architecture of a dissertation concerning
-an existing educational fixed-income analytics engine. It contains a research
-plan, a verified reference base, notation, terminology and selected mathematical
-statements. It is not a completed dissertation or an institutional declaration.
-The independent verification record remains separately available as
+This dissertation studies an existing educational computational framework.
+Its inputs are invented offline observations; no institutional affiliation,
+submission or empirical market validity is asserted.
+The independent internal verification record remains available as
 \path{paper/verification_report.tex}.
-% Any later institutional declaration must use the institution's actual requirements.
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
-\plan{Write the abstract after the analysis is complete: motivation; aim;
-explicit financial conventions; analytical and numerical verification methods;
-principal results with units; and the scope of the conclusions.
-Identify the inputs as illustrative and offline. Do not claim empirical
-market significance or originality of established formulas.}
+\input{frontmatter/abstract}
 \clearpage
 \tableofcontents
 \clearpage
@@ -94,6 +87,7 @@ market significance or originality of established formulas.}
 \clearpage
 \printbibliography[heading=bibintoc,title={References}]
 \appendix
+\crefalias{chapter}{appendix}
 \input{appendices/A_detailed_derivations}
 \input{appendices/B_reproducibility}
 \end{document}

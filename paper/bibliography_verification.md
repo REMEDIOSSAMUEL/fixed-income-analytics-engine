@@ -1,4 +1,4 @@
-# Bibliographic verification and reading allocation
+# Bibliographic verification and source-use record
 
 Checked on 14 September 2026. There are 15 references in `references.bib`.
 This is an editorial research record, not dissertation prose.
@@ -39,6 +39,25 @@ The original-model, institutional-estimation, textbook, numerical-analysis
 and implementation sources have distinct roles. A fitted curve's residual
 does not justify the economic interpretation of its input rates.
 
-The skeleton cites every bibliography entry through a genuine reading
-allocation; it does not use an indiscriminate wildcard citation. No university,
+The completed dissertation cites all 15 bibliography entries selectively;
+no wildcard citation is used. No university,
 degree, supervisor, candidate number or submission date has been invented.
+
+## Completed dissertation source-use check
+
+The original metadata audit above is retained as the planning-phase record.
+During authoring, the relevant Svensson estimation discussion was checked in
+the [author-hosted IMF version, section III](https://larseosvensson.se/files/papers/estimating-and-interpreting-forward-rates-sweden-1992-1994-IMFwp94-114.pdf).
+It distinguishes spot discounting from coupon-bond yields and introduces the
+additional curvature term. The bibliography consistently retains the verified
+NBER version. Gilli, Grosse and Schumann's opening modelling/calibration
+sections corroborate the loading form and the local-optimum/conditioning
+limitations. The BIS overview and the official SciPy algorithm discussion
+were rechecked. No external empirical results or alternative optimisation
+algorithms have been attributed to this engine.
+
+Detailed project equations and numerical claims are grounded in direct source
+inspection, the preserved independent verification report, and fresh public-API
+execution. Textbook and historical citations supply context, without invented
+pinpoint citations or a claim of complete full-text reading. The final citation
+audit confirms that every key resolves and all 15 entries are cited.

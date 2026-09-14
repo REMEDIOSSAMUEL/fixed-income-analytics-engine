@@ -1,103 +1,41 @@
-\chapter{Mathematical verification}\label{ch:verification}
-\section{Evidence base and meaning of verification}\label{sec:verify-basis}
-\plan{Base this chapter directly on \path{paper/verification_report.tex}.
-The report audits revision \texttt{7eee019} and was committed as
-\texttt{a1dde66}. Financial source, tests and illustrative data are identical
-between these revisions. Preserve the report as an independent record;
-distinguish real-arithmetic identities from finite numerical evidence.}
-% Executed 13 September 2026, finalised 14 September. Do not invent external
-% authorship, a DOI or peer-review status for this internal record.
-\section{Exact bond identities}\label{sec:verify-bonds}
-% Report sections: Fixed-rate bond foundations and fractional-period pricing;
-% Par-bond identity; First derivative and duration; Independent numerical
-% duration and convexity checks; YTM DV01.
-\subsection{Accrual, coupon boundaries and par}
-% Independent dates/counts/AI before/on/after coupon; annual/semiannual par.
-\subsection{First and second derivatives}
-% Differentiate the finite sum; lengthy algebra goes to Appendix A.
-\section{Finite differences and convergence}\label{sec:verify-differences}
-A finite difference approximates a derivative using displaced function
-values. A central difference uses both signs about the same point.
-Truncation error arises from omitted Taylor terms, before rounding.
-\begin{align}
-\frac{P(\yytm+h)-P(\yytm-h)}{2h}
- &=P'(\yytm)+O(h^2),\label{eq:central-first}\\
-\frac{P(\yytm+h)-2P(\yytm)+P(\yytm-h)}{h^2}
- &=P''(\yytm)+O(h^2).\label{eq:central-second}
-\end{align}
-% Report: seven h values 1e-2,...,1e-8 and an independent reference price.
-% Preserve cancellation-driven deterioration at very small steps.
-\plan{Explain truncation versus rounding \parencite{higham2002};
-transfer the report's values to \cref{tab:convergence} after transcription checks.}
+\chapter{Mathematical and numerical verification}\label{ch:verification}
+The independent internal report, \path{paper/verification_report.tex}, supplies separately constructed cash flows, 90-digit exponential references and analytical identities. Proofs establish results under assumptions; tests provide finite numerical evidence.
+
+Par and clean/dirty identities agree to rounding precision. Central repricing agrees independently; its YTM DV01 exceeds the duration approximation by \(1.93\times10^{-9}\) currency units. \Cref{tab:derivatives,tab:convergence} show derivative agreement and initial second-order convergence, followed by cancellation as steps shrink.
+
 \begin{table}[htbp]
-\centering\small
-\caption{Planned finite-difference convergence comparison}\label{tab:convergence}
-\begin{tabular}{@{}L{0.18\textwidth}L{0.34\textwidth}L{0.40\textwidth}@{}}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\caption{Independent normalised derivative checks. Errors are absolute differences and differences divided by the absolute analytical reference.}\label{tab:derivatives}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Input & Estimates & Comparisons\\
+Quantity; step & Analytical & Numerical & Abs.\ error & Rel.\ error\\
 \midrule
-Decimal step \(h\) & Central duration (years); central convexity (years squared)
-& Analytical reference; signed and absolute errors in corresponding units\\
+\(D_{\mathrm{Mod}};\ 10^{-5}\) & 4.2315176920 & 4.2315176940 & \(1.973\,10^{-9}\) & \(4.662\,10^{-10}\)\\
+\(\mathcal C;\ 10^{-4}\) & 21.1104448496 & 21.1104452368 & \(3.872\,10^{-7}\) & \(1.834\,10^{-8}\)\\
 \bottomrule
 \end{tabular}
-\par\smallskip{\footnotesize Planned source: independent verification record,
-section on independent numerical duration and convexity checks.}
+\par\smallskip{\footnotesize Duration and its absolute error are in years; convexity and its absolute error in years squared. Steps are decimal YTM. Source: independent verification report, numerical duration and convexity checks.}
 \end{table}
-\section{NSS asymptotics and numerical stability}\label{sec:verify-nss}
-% Report: NSS model, analytical limits, and numerical stability.
-\subsection{Short- and long-maturity limits}
-% Distinguish limits from unsupported T=0.
-\subsection{Loadings near the numerical switch}
-% Independent 90-digit original exponentials, isolated L2 and x near 1e-3.
-% Tiny positive arguments down to 1e-24; equality after binary64 conversion
-% does not establish zero error against exact arithmetic.
-\section{Independent synthetic calibration}\label{sec:verify-calibration}
-% Report: NSS calibration and independent synthetic fit.
-% 40 geometric maturities .05--40 years, theta=(.04,-.025,.03,-.012,1.4,6.5),
-% independent noiseless observations; 1001-point comparison grid.
-% RMSE, observation/grid maximum error, residual sign, selected status.
-% Parameter proximity is an observation, not a guarantee of identification.
-\section{Zero discounting and shock verification}\label{sec:verify-zero}
-% Report: Continuous-zero pricing and parallel shock monotonicity;
-% Piecewise-linear shocks. Independent three-payment flat-curve sum, dates,
-% leap-day treatment, anchors/midpoints/tails, continuity and monotonicity.
-\section{Key-rate partition and reconciliation}\label{sec:verify-keys}
-% Report: Key-rate basis and partition of unity; Key-rate DV01, parallel
-% DV01, and reconciliation. All-maturity proof and 100008-point check.
-\subsection{Proof and independent numerical basis}
-% Treat four maturity regions and single key; independent construction avoids np.interp.
-\subsection{Full repricing and bump-size checks}
-% Independent key prices, cubic leading term, fifth-order bound; h=2e-4,1e-4,5e-5.
-\plan{Use the existing record's bump checks; variable bumps were independent
-calculations, not an exposed API feature. See \cref{sec:app-reconciliation}.}
-\section{Synthesis of evidence and limits of inference}
 \begin{table}[htbp]
-\centering\small
-\caption{Verification evidence and dissertation destinations}\label{tab:verification-map}
-\begin{tabular}{@{}L{0.23\textwidth}L{0.38\textwidth}L{0.29\textwidth}@{}}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\caption{Finite-difference convergence and rounding deterioration. Both normalised central formulas have \(O(h^2)\) truncation error.}\label{tab:convergence}
+\begin{tabular}{@{}rrr@{}}
 \toprule
-Object & Independent evidence & Destination\\
+Decimal step \(h\) & \shortstack{Absolute duration\\error (years)} & \shortstack{Absolute convexity\\error (years squared)}\\
 \midrule
-Par, accrual, derivatives & Geometric identity; explicit dates and finite sums
-& \cref{sec:verify-bonds,sec:app-derivatives}\\
-DV01/convergence & Central repricing; seven steps
-& \cref{sec:verify-differences,sec:app-dv01}\\
-NSS loadings/limits & Series and 90-digit references
-& \cref{sec:verify-nss,sec:app-nss}\\
-Synthetic fit & 40 observations; 1,001 grid maturities
-& \cref{sec:verify-calibration}\\
-Zero price/shocks & Dated exponential sum; interpolation
-& \cref{sec:verify-zero}\\
-Key basis & Piecewise proof; 100,008 points
-& \cref{sec:app-partition}\\
-Key/parallel DV01 & Independent repricing; cubic term
-& \cref{sec:app-reconciliation,tab:key-results}\\
+\(10^{-2}\) & \(1.951\,10^{-3}\) & \(5.912\,10^{-3}\)\\
+\(10^{-3}\) & \(1.951\,10^{-5}\) & \(5.911\,10^{-5}\)\\
+\(10^{-4}\) & \(1.951\,10^{-7}\) & \(3.872\,10^{-7}\)\\
+\(10^{-5}\) & \(1.973\,10^{-9}\) & \(1.810\,10^{-6}\)\\
+\(10^{-6}\) & \(5.499\,10^{-10}\) & \(1.247\,10^{-4}\)\\
+\(10^{-7}\) & \(2.131\,10^{-9}\) & \(1.832\,10^{-1}\)\\
+\(10^{-8}\) & \(2.805\,10^{-8}\) & \(4.492\,10^{-1}\)\\
 \bottomrule
 \end{tabular}
-\par\smallskip{\footnotesize Source: independent verification record.
-Counts describe the recorded experiments.}
+\par\smallskip{\footnotesize Source: independent verification report; explicit ten-payment reference bond, rather than engine-generated reference prices.}
 \end{table}
-% Plan numerical comparison columns: reference, implementation, difference,
-% units, h if relevant, tolerance/rationale, conclusion.
-% Report baseline 234 passing tests separately from fresh Appendix B validation.
-% No universal accuracy, global optimum, economic validation or production claim.
+
+NSS limits agree with \cref{eq:nss-limits}; isolated loading comparisons reach maximum relative error \(4.47\times10^{-13}\) near the numerical switch. Forty independently generated noiseless observations give RMSE \(3.29\times10^{-18}\) decimal and maximum error \(1.39\times10^{-17}\) over 1,001 comparison maturities.
+
+Independent zero-curve pricing gives 103.23571061465249 currency units, matching the engine. Shock signs satisfy \cref{eq:parallel-sign}. The basis proof covers all maturities; 100,008 sampled points have maximum computed partition error zero. Halving the reconciliation bump reduces its discrepancy approximately eightfold (\cref{sec:app-reconciliation}). Fresh execution passes all 234 tests.
+\clearpage

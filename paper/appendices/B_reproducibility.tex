@@ -1,102 +1,61 @@
 \chapter{Reproducibility}\label{app:reproducibility}
-\section{Execution context and provenance}
-% Record final manuscript revision separately when full results are produced.
-% Do not retrospectively replace the independent report's historical environment.
-The planning-phase checks used native Windows PowerShell, Python 3.12.10
-and the existing editable installation at revision \texttt{a1dde66}.
-Import resolved to this repository's \path{src/fixed_income/__init__.py};
-installed package metadata confirmed \texttt{editable=true}.
-On 14 September 2026, all 234 tests passed and the bond, curve, risk and
-demo commands completed with the results retained in \cref{ch:results}.
-% No reinstall was needed to validate the already editable installation.
-\begin{table}[htbp]
-\centering\small
-\caption{Recorded numerical environment for the planning-phase checks}\label{tab:environment}
-\begin{tabular}{@{}ll@{}}
-\toprule
-Component & Version\\
-\midrule
-Python & 3.12.10\\
-NumPy & 2.5.3\\
-SciPy & 1.18.1\\
-pandas & 3.0.5\\
-matplotlib & 3.11.2\\
-python-dateutil & 2.9.0.post0\\
-pytest & 9.1.1\\
-\bottomrule
-\end{tabular}
-\par\smallskip{\footnotesize Source: installed interpreter and package metadata.
-This is an execution record, not a dependency lockfile.}
-\end{table}
-\section{Environment setup and editable installation}
-Run from the repository root. Create the environment only if it does not
-already exist; select an installed Python version of at least 3.12.
-Dependency installation may require network access; analytical execution
-uses only the offline inputs.
+\section{Execution record}
+The dissertation calculations were rerun on 14 September 2026 from the existing implementation at revision \texttt{b671e65}. Financial source, tests and illustrative inputs are unchanged from the independent report's audited revision \texttt{7eee019}. The editable installation imports this repository's package. All 234 tests passed; the individual bond, curve and risk commands completed with the results in \cref{ch:results}.
+
+Execution used native Windows PowerShell, Python 3.12.10, NumPy 2.5.3, SciPy 1.18.1, matplotlib 3.11.2, pandas 3.0.5, python-dateutil 2.9.0.post0 and pytest 9.1.1. pandas is declared by the project but is not used in these numerical routines. Dependencies are not locked; deterministic starts ensure same-environment repeatability rather than identical results across all versions.
+
+\section{Environment and numerical reproduction}
+Run from the repository root. Create the virtual environment only when absent; installation may need network access, but the examples use only offline inputs.
 \begingroup\footnotesize
 \begin{verbatim}
 if (-not (Test-Path .\.venv\Scripts\python.exe)) {
     py -3.12 -m venv .venv
 }
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe --version
-.\.venv\Scripts\python.exe -c "import fixed_income; print(fixed_income.__file__)"
-.\.venv\Scripts\python.exe -m pip list
-git rev-parse HEAD
-\end{verbatim}
-\endgroup
-% Dependencies are not pinned; log versions before comparing numeric results.
-\section{Tests and existing illustrative commands}
-\begingroup\footnotesize
-\begin{verbatim}
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m fixed_income.cli bond
 .\.venv\Scripts\python.exe -m fixed_income.cli curve
 .\.venv\Scripts\python.exe -m fixed_income.cli risk
 .\.venv\Scripts\python.exe -m fixed_income.cli demo
-git diff --check
 \end{verbatim}
 \endgroup
-% Stop on a nonzero exit code and investigate before treating results as valid.
-The curve, risk and demo commands resolve
-\path{examples/illustrative_curve.csv} relative to the current working directory.
-Curve and demo write \path{outputs/yield_curve.png}, replacing the prior plot.
-The independent calculation scripts remain in the separate verification report.
-\section{LaTeX toolchain and compilation}
-Use an installed pdfLaTeX toolchain with \texttt{latexmk}, \texttt{biblatex}
-and \texttt{biber}; no Python dependency is required for typesetting.
-The bibliography uses one author--year system throughout.
+Check each exit code before proceeding. The curve and demo commands write \path{outputs/yield_curve.png}; observations are read from \path{examples/illustrative_curve.csv} relative to the repository root. Complete independent verification scripts remain in the standalone report and may be executed through its PowerShell stdin wrapper.
+
+\section{Calibration settings}\label{sec:reproduce-fit}
+Initial decay pairs, in years, are \((0.5,2),(1,5),(2,10),(5,1),(10,3),(3,15)\).
+Each seeds linear least-squares coefficients, followed by joint six-parameter optimisation. Coefficients are unbounded; both decay scales lie in \([0.01,100]\) years. At least six distinct positive maturities are required; observations have equal weight, including repeated tenors.
+
+Optimisation residuals are \(10^4e_\ell\). The installed \texttt{least\_squares} defaults are trust-region reflective, linear loss and a two-point numerical Jacobian (a matrix of residual derivatives). The code specifies Jacobian-based scaling, \texttt{ftol=xtol=gtol=1e-10} and \texttt{max\_nfev=3000}. These tolerances control termination through objective, step and gradient criteria; they are not bounds on financial error. Function counts exclude extra residual calls for numerical Jacobians \parencite{scipyLeastSquares}.
+
+Only successful, finite, bounded candidates qualify; smallest unscaled residual sum of squares wins, with earlier-start tie breaking. Failure of all starts raises an error. This procedure is a local search, not a guarantee of global optimality.
+
+\section{Figure and numerical provenance}
+\Cref{fig:nss} uses the existing fitted curve evaluated at 500 evenly spaced maturities between the minimum and maximum supplied observations, with rates multiplied by 100 for percentage display. \Cref{fig:key-dv01} plots public key-rate DV01 results at the four default keys. Both are vector PDF figures generated using existing NumPy and matplotlib dependencies through temporary stdin Python. No financial module or permanent plotting feature was added. Table values were compared with fresh command outputs or unrounded public-API results; reconciliation was computed before rounding.
+
+\section{LaTeX compilation}
+The build uses pdfLaTeX, latexmk 4.88 and Biber 2.22 with biblatex author--year references; pdfTeX is 1.40.29 (MiKTeX 26.5).
 \begingroup\footnotesize
 \begin{verbatim}
-latexmk --version
-biber --version
 Push-Location .\paper
 try {
     latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build main.tex
     if ($LASTEXITCODE -ne 0) { throw "LaTeX compilation failed." }
+    Copy-Item .\build\main.pdf .\fixed_income_analytics_dissertation.pdf
 } finally {
     Pop-Location
 }
+git diff --check
 \end{verbatim}
 \endgroup
-The expected PDF is \path{paper/build/main.pdf}.
-Auxiliary files, including the bibliography build products, belong in
-\path{paper/build/}. The existing repository rule \path{build/} already
-ignores this directory; no global PDF ignore rule is introduced.
-The skeleton was compiled with latexmk 4.88, Biber 2.22 and
-pdfTeX 1.40.29 (MiKTeX 26.5). The bibliography was processed successfully
-by Biber as part of the latexmk build.
-\section{Result transcription and figure production plan}
-% Future manuscript work: obtain values from existing public APIs or existing
-% commands; preserve precision internally and round once in tables.
-% Check displayed values and residual sign, assign units/captions/source, and
-% compare with Chapter 7's independent references. No new financial algorithms.
-% Generate the three planned static figures in paper/figures/ only when
-% results presentation is requested. Keep the current boxes visibly marked as plans.
-\section{Bibliographic provenance}
-% Audit is an editorial research record, not final dissertation narrative.
-The source-selection and metadata checks are recorded in
-\path{paper/bibliography_verification.md}. Bibliographic metadata verification
-does not establish that every chapter or argument in a source has been read.
-Later drafting must inspect the relevant source material before making more
-specific claims or adding pinpoint page citations.
+Auxiliary files remain in ignored \path{paper/build/}. The final PDF and two figure PDFs are intentional publication artefacts.
+
+\section{Bibliographic and editorial verification}
+All bibliography entries have verified metadata recorded in \path{paper/bibliography_verification.md} and are cited in the dissertation. Primary papers support the NSS attribution; institutional studies supply estimation context, with no external financial observations imported. Mathematical identities are derived rather than inferred from bibliographic authority.
+
+The word audit uses TeXcount on the abstract and ten chapters, retaining prose,
+headings and table-cell text while excluding mathematical expressions,
+cross-reference identifiers, captions and source notes. Notation, terminology,
+references and appendices are excluded. The result is 1,946 text words plus
+50 heading words: 1,996 in total, within the 2,000-word target. The abstract
+contains 168 words. Table environments were unpacked for this audit so their
+substantive text was not silently omitted by the counter.

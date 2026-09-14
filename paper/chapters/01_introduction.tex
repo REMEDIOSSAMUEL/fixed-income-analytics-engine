@@ -1,51 +1,13 @@
 \chapter{Introduction}\label{ch:introduction}
-\section{Motivation and academic context}\label{sec:motivation}
-% Explain valuation as a relation between contractual payments, time and
-% discounting. Establish the significance of a term structure for valuing
-% payments at different horizons, then motivate sensitivity to rate changes.
-% Do not introduce current market statistics or describe a commercial product.
-\plan{Develop the motivation through valuation, the yield curve and sensitivity
-to interest rates; use established fixed-income literature
-\parencite{tuckman2011,bis2005}. Define specialised language before relying on it.}
-\subsection{Fixed-income valuation}
-% Describe the mathematical problem, rather than listing package features.
-\subsection{The role of the yield curve}
-% Motivate maturity-dependent discounting without treating every quoted yield as a zero.
-\subsection{Why interest-rate sensitivity matters}
-% Motivate price response to specified rate changes; no investment recommendations.
-\section{Research aim}\label{sec:aim}
-This dissertation examines the development and mathematical verification of a
-transparent computational framework for conventional fixed-rate bond valuation,
-Nelson--Siegel--Svensson yield-curve modelling, and deterministic interest-rate
-risk analysis under explicit financial conventions.
-% The implementation already exists. Development refers to the study's
-% methodological construction, not an instruction to extend the software.
-\section{Research questions}\label{sec:questions}
+Bonds finance borrowing through promised payments. Their valuation depends on when those payments occur and how future amounts are discounted. A single discount yield cannot describe every maturity's rate; the yield curve records this variation. Price levels alone do not establish rate sensitivity.
+
+This dissertation examines transparent fixed-rate valuation, Nelson--Siegel--Svensson modelling and deterministic interest-rate risk, asking:
 \begin{enumerate}
-\item\label{rq:bond} How can fixed-rate bond prices and yield sensitivities be
-derived and implemented transparently under explicit coupon, accrual and
-nominal-yield conventions?
-\item\label{rq:nss} How does the Nelson--Siegel--Svensson specification represent
-a smooth term structure, and what numerical and identification issues arise
-in its calibration?
-\item\label{rq:risk} How can parallel, shaped and key-rate shocks be represented
-consistently for fixed cash flows discounted using an explicitly defined zero curve?
-\item\label{rq:verification} To what extent do independent analytical identities,
-numerical comparisons and deterministic tests support the correctness of the
-implemented calculations under the stated assumptions?
+\item\label{rq:bond} How do explicit conventions determine bond prices and yield sensitivities?
+\item\label{rq:nss} How can a smooth parametric curve be fitted reliably?
+\item\label{rq:risk} How can parallel, shaped and key-rate exposures be represented consistently?
+\item\label{rq:verification} What independent evidence supports computational correctness?
 \end{enumerate}
-\section{Scope and boundaries}\label{sec:scope}
-% Exactly three capabilities. Fixed cash flows, generic NSS fitting, deterministic
-% zero-curve scenarios. No empirical markets, forecasting, trading or portfolio study.
-\plan{State the regular-coupon and time-convention assumptions. Distinguish
-mathematical verification from economic validation and from production readiness.}
-\section{Contributions of the study}
-% Modest contributions: explicit convention framework; connected derivations;
-% independent verification evidence; reproducible illustrative computations.
-% Established valuation identities and NSS are not original research contributions.
-\section{Dissertation structure}
-% Explain the argument: concepts (2), valuation (3), curve model (4), risk (5),
-% computational method (6), verification (7), results (8), critique (9),
-% answers to research questions (10), algebra and reproduction (A--B).
-\plan{Use \cref{ch:foundations,ch:bonds,ch:nss,ch:risk,ch:computation,ch:verification,ch:results,ch:limitations,ch:conclusion} to describe the progression
-from concepts to evidence and its interpretation.}
+The scope comprises regular option-free bonds, whose contracts contain no rights to alter payments, and illustrative offline rates. Credit events, forecasting, trading and backtesting are excluded. The contribution is independent verification of established mathematics, not new financial theory.
+
+\Cref{ch:foundations,ch:bonds,ch:nss,ch:risk} develop the financial argument; \cref{ch:computation,ch:verification,ch:results} present computation and evidence. \Cref{ch:limitations,ch:conclusion} delimit the conclusions; \cref{app:derivations,app:reproducibility} supply derivations and reproduction instructions.

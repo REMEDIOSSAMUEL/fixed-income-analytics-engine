@@ -1,110 +1,46 @@
 \chapter{Fixed-rate bond analytics}\label{ch:bonds}
-\section{Notation, domain and assumptions}\label{sec:bond-assumptions}
-Let \(F>0\) denote face value in currency units, \(c\geq0\) the annual
-decimal coupon rate, and \(m\in\{1,2\}\) the number of coupon payments per year.
-The nominal annual decimal yield to maturity is \(\yytm\), compounded \(m\)
-times per year. Define the dimensionless periodic accumulation factor
-\(B=1+\yytm/m>0\).
-\begin{table}[htbp]
-\centering\small
-\caption{Model assumptions and their methodological consequences}\label{tab:assumptions}
-\begin{tabular}{@{}L{0.29\textwidth}L{0.64\textwidth}@{}}
-\toprule
-Assumption & Consequence\\
-\midrule
-Fixed nonnegative coupons; positive redemption & Cash flows remain fixed in sensitivity calculations.\\
-Regular annual/semiannual payments & No irregular first or final coupon periods.\\
-Maturity-anchored calendar dates & Invalid month days clip; no business-day or additional month-end rule.\\
-Payments strictly after settlement & A settlement-date coupon is excluded; accrual restarts at zero.\\
-Actual days within the coupon period & Accrual is a period fraction, not a complete market day-count standard.\\
-YTM: fractional coupon periods & Discount at one nominal coupon-compounded annual yield.\\
-Zero curve: actual days divided by 365 & Discount separately at continuous annual zero rates.\\
-Deterministic instantaneous shocks & Settlement and cash flows remain unchanged.\\
-\bottomrule
-\end{tabular}
-\par\smallskip{\footnotesize Source: conventions in the existing implementation.}
-\end{table}
-\section{Regular coupon schedule and accrual}\label{sec:bond-accrual}
-Let \(d_s\) be settlement, \(d_M\) maturity, \(d_-\) the coupon date on or
-before settlement and \(d_+\) the first coupon date after settlement.
-The operator \(\operatorname{days}\) counts calendar days. The accrued
-fraction \(\alpha\), remaining fraction \(w\), currency coupon \(C\) and
-currency accrued interest \(AI\) satisfy
+\section{Cash flows and valuation}\label{sec:bond-assumptions}
+Assume fixed nonnegative coupons, positive redemption and annual or semiannual payments. Dates are maturity minus multiples of 12 or 6 months, clipping nonexistent days. Settlement-date payments are excluded.
+
+Let \(F>0\) be face value in currency, \(c\geq0\) the annual decimal coupon rate, \(m\in\{1,2\}\) payments per year, and \(\yytm\) nominal annual decimal YTM compounded \(m\) times. The dimensionless accumulation factor is \(B=1+\yytm/m>0\).
+\label{sec:bond-accrual}
+For settlement \(d_s\), preceding/on-settlement coupon \(d_-\), next coupon \(d_+\), and calendar-day count \(\operatorname{days}\), define accrued-period fraction \(\alpha\), currency coupon \(C\), and accrued interest \(AI\):
 \begin{equation}\label{eq:accrual}
-C=\frac{Fc}{m},\qquad
-\alpha=\frac{\operatorname{days}(d_s-d_-)}
-{\operatorname{days}(d_+-d_-)},\qquad w=1-\alpha,\qquad AI=C\alpha.
+C=\frac{Fc}{m},\quad
+\alpha=\frac{\operatorname{days}(d_s-d_-)}{\operatorname{days}(d_+-d_-)},\quad AI=C\alpha.
 \end{equation}
-% Explain maturity minus integer multiples of 12/m calendar months.
-% At settlement on coupon date: alpha=0, w=1; exclude that day's coupon.
-\section{Fractional-period YTM valuation}\label{sec:ytm-price}
-For payment index \(i=1,\ldots,N\), \(N\) is the number of future payments
-and \(d_i\) their dates. Define the fractional coupon-period count
-\(q_i=w+i-1\), the coupon-based time \(T_i=q_i/m\) in years, and the currency
-cash flow \(CF_i=C+F\mathbf{1}_{\{i=N\}}\).
-The indicator \(\mathbf{1}_{\{i=N\}}\) equals one only at redemption.
-The YTM-discounted present value is \(PV_i=CF_iB^{-q_i}\).
+\label{sec:ytm-price}
+Index the \(N\) future payments by \(i=1,\ldots,N\), with dates \(d_i\). Their coupon-period distances \(q_i=i-\alpha\) are fractional between coupon dates. Cash flow \(CF_i\) equals \(C\), plus \(F\) at redemption; \(PV_i\) denotes its currency present value. Dirty and clean currency prices \(P_{\mathrm{dirty}},P_{\mathrm{clean}}\) follow exactly from fractional compounding:
 \begin{equation}\label{eq:ytm-price}
-P_{\mathrm{dirty}}(\yytm)=\sum_{i=1}^{N}PV_i,\qquad
-P_{\mathrm{clean}}=P_{\mathrm{dirty}}-AI.
+P_{\mathrm{dirty}}=\sum_{i=1}^N\underbrace{CF_iB^{-q_i}}_{PV_i},
+\qquad P_{\mathrm{clean}}=P_{\mathrm{dirty}}-AI.
 \end{equation}
-Both prices are currency amounts for \(F\); they are not automatically
-normalised to 100. Hereafter \(P(\yytm)\) abbreviates the dirty YTM price.
-% Explain fractional powers as an explicit discounting convention.
-\section{Par, premium and discount relationships}\label{sec:par}
-% Define premium/discount relative to face. Prove par only for coupon-date
-% settlement with c=y_YTM, including the zero-yield case.
-% Use monotonicity for premium/discount at that boundary. Do not assert
-% dirty par or exactly clean par between coupons merely because c=y_YTM.
-\plan{State the conditional par identity; move the geometric-series proof
-to \cref{sec:app-par}. Place conventional context alongside
-\textcite{tuckman2011}.}
-\section{Duration and the analytical first derivative}\label{sec:duration}
-% Define duration before its two forms; Macaulay is weighted time,
-% modified is local proportional price sensitivity, not final maturity.
-% Historical attribution: Macaulay (1938); textbook for contemporary conventions.
-Macaulay duration \(D_{\mathrm{Mac}}\) is the present-value-weighted payment
-time in years. Modified duration \(D_{\mathrm{Mod}}\) is the negative
-dirty-price-normalised first derivative with respect to annual decimal YTM
-\parencite{macaulay1938,tuckman2011}.
-Primes on \(P\) denote derivatives with respect to \(\yytm\).
+\label{sec:par}
+Par means price equals face; premium and discount mean above and below it. At coupon-date settlement, \(c=\yytm\) implies \(P_{\mathrm{dirty}}=P_{\mathrm{clean}}=F\) (\cref{sec:app-par}); between coupons exact par is not guaranteed.
+
+\section{Duration, convexity and DV01}\label{sec:duration}
+Duration measures local rate sensitivity; Macaulay duration \(D_{\mathrm{Mac}}\) is also weighted payment time \parencite{macaulay1938}. Define coupon-based years \(T_i=q_i/m\) and abbreviate dirty price by \(P\); primes denote YTM derivatives. Differentiation yields modified duration \(D_{\mathrm{Mod}}\):
 \begin{align}
-P'(\yytm)&=-\sum_i CF_i\frac{q_i}{m}B^{-q_i-1},\label{eq:price-first}\\
 D_{\mathrm{Mac}}&=\frac{\sum_i T_iPV_i}{P},&
-D_{\mathrm{Mod}}&=-\frac{P'}P=\frac{D_{\mathrm{Mac}}}{B}.
-\label{eq:duration}
+P'&=-\sum_i CF_i\frac{q_i}{m}B^{-q_i-1},\label{eq:price-first}\\
+D_{\mathrm{Mod}}&=-\frac{P'}P=\frac{D_{\mathrm{Mac}}}{B}.\label{eq:duration}
 \end{align}
-% Explain fixed settlement and cash flows during differentiation, dirty-price
-% normalisation, conventional year units and the role of m.
-\section{Convexity and the analytical second derivative}\label{sec:convexity}
-Convexity \(\mathcal C\) measures the curvature of the price--yield relation
-through its normalised second derivative, conventionally in years squared.
+Both durations conventionally have year units. For small decimal yield change \(\delta y\), relative price change is approximately \(-D_{\mathrm{Mod}}\delta y\).
+
+\label{sec:convexity}
+Larger moves require curvature. Normalised convexity \(\mathcal C\), conventionally years squared, follows from
 \begin{equation}\label{eq:convexity}
-P''(\yytm)=\sum_i CF_i\frac{q_i(q_i+1)}{m^2}B^{-q_i-2},
-\qquad \mathcal C=\frac{P''}{P}.
+P''=\sum_i CF_i\frac{q_i(q_i+1)}{m^2}B^{-q_i-2},\qquad \mathcal C=P''/P.
 \end{equation}
-% Explain nonnegative cash flows imply positive convexity here.
-% No factor 1/2 in convexity; it enters the Taylor expansion.
-\section{DV01 and the Taylor approximation}\label{sec:ytm-dv01}
-The decimal bump \(h\) equals \(10^{-4}\) for DV01, the currency sensitivity
-for a one-basis-point move. The project uses down-minus-up central repricing:
-\begin{equation}\label{eq:ytm-dv01}
-\mathrm{DV01}_{\mathrm{YTM}}=
-\frac{P(\yytm-h)-P(\yytm+h)}{2}
-=hPD_{\mathrm{Mod}}+O(h^3).
-\end{equation}
-Here \(O(h^3)\) denotes a remainder bounded by a constant times \(|h|^3\)
-as \(h\) approaches zero with other inputs fixed.
-For a small annual decimal yield change \(\delta y\), Taylor expansion gives
+Positive redemption makes \(\mathcal C>0\). Taylor's local polynomial approximation gives
 \begin{equation}\label{eq:taylor-price}
 \frac{P(\yytm+\delta y)-P(\yytm)}{P(\yytm)}
-=-D_{\mathrm{Mod}}\delta y+\tfrac12\mathcal C(\delta y)^2
-+O((\delta y)^3).
+\approx-D_{\mathrm{Mod}}\delta y+\tfrac12\mathcal C(\delta y)^2.
 \end{equation}
-% Define Taylor approximation as local polynomial expansion.
-% DV01 is not a derivative divided by h. Both bumped yields must remain valid.
-\section{Limitations of the selected bond conventions}
-% No yield solver, irregular coupons, holiday adjustment, ex-coupon or credit model.
-% Separate clean-price derivative equality from different price normalisations.
-\plan{Link the limits of these identities to \cref{ch:limitations};
-place detailed first/second differentiation in \cref{sec:app-derivatives}.}
+\label{sec:ytm-dv01}
+DV01 measures the currency price response to one basis point, here using down-minus-up central repricing with decimal bump \(h=10^{-4}\):
+\begin{equation}\label{eq:ytm-dv01}
+\mathrm{DV01}_{\mathrm{YTM}}=\frac{P(\yytm-h)-P(\yytm+h)}2
+=hPD_{\mathrm{Mod}}+O(h^3).
+\end{equation}
+The remainder is bounded locally by a constant times \(h^3\). Repricing retains finite-bump curvature rather than substituting duration; both bumped yields must remain valid. \Cref{sec:app-derivatives,sec:app-dv01} provide the derivations.
