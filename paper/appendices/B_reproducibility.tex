@@ -2,7 +2,7 @@
 \section{Execution record}
 The dissertation calculations were independently rechecked on 14 September 2026 against the submitted dissertation revision \texttt{5a3f2ea}. The examiner's findings and supplementary numerical evidence are recorded in \path{paper/examiner_report.md}. Financial source, tests and illustrative inputs are unchanged from the independent report's audited revision \texttt{7eee019}. The editable installation imports this repository's package. All 234 tests passed; the individual bond, curve and risk commands completed with the results in \cref{ch:results}.
 
-Execution used native Windows PowerShell, Python 3.12.10, NumPy 2.5.3, SciPy 1.18.1, matplotlib 3.11.2, pandas 3.0.5, python-dateutil 2.9.0.post0 and pytest 9.1.1. pandas is declared by the project but is not used in these numerical routines. Dependencies are not locked; deterministic starts ensure same-environment repeatability rather than identical results across all versions.
+Execution used native Windows PowerShell, Python 3.12.10, NumPy 2.5.3, SciPy 1.18.1, matplotlib 3.11.2, python-dateutil 2.9.0.post0 and pytest 9.1.1. pandas 3.0.5 was installed but was not used in these numerical routines. Dependencies are not locked; deterministic starts ensure same-environment repeatability rather than identical results across all versions.
 
 \section{Environment and numerical reproduction}
 Run from the repository root. Create the virtual environment only when absent; installation may need network access, but the examples use only offline inputs.

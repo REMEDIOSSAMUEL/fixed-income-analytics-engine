@@ -16,14 +16,12 @@ from fixed_income.risk import (
 
 
 def _load_curve() -> NSSFitResult:
-    """Fit the invented repository CSV (decimal rates, maturities in years)."""
     source = Path("examples") / "illustrative_curve.csv"
     data = np.genfromtxt(source, delimiter=",", names=True)
     return fit_nss(data["maturity_years"], data["rate"])
 
 
 def _curve_example() -> NSSFitResult:
-    """Print the illustrative fit and save its plot."""
     result = _load_curve()
     print("Illustrative NSS curve example (invented; no market data)")
     print("Generic decimal rates; no implied compounding convention.")
@@ -45,7 +43,6 @@ def _curve_example() -> NSSFitResult:
 
 
 def _risk_example(curve: ZeroCurve | None = None) -> None:
-    """Illustrative instantaneous risk, explicitly interpreting rates as zeros."""
     if curve is None:
         curve = _load_curve().curve
     bond = FixedRateBond(date(2025, 4, 15), date(2055, 1, 15), coupon_rate=0.04)
@@ -78,7 +75,6 @@ def _risk_example(curve: ZeroCurve | None = None) -> None:
 
 
 def _bond_example() -> None:
-    """Print the original nominal-YTM bond example."""
     bond = FixedRateBond(date(2025, 4, 15), date(2030, 1, 15), coupon_rate=0.04)
     ytm = 0.045
     result = bond.analytics(ytm)
