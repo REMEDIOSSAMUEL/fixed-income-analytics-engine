@@ -33,7 +33,7 @@ Only successful, finite, bounded candidates qualify; smallest unscaled residual 
 \Cref{fig:nss} uses the existing fitted curve evaluated at 500 evenly spaced maturities between the minimum and maximum supplied observations, with rates multiplied by 100 for percentage display. \Cref{fig:key-dv01} plots public key-rate DV01 results at the four default keys. Both are vector PDF figures generated using existing NumPy and matplotlib dependencies through stdin Python. The examiner corrected the key-rate figure's clipped axis label; its regeneration script is retained in \path{paper/examiner_report.md}. No financial module or permanent plotting feature was added. Table values were compared with fresh command outputs or unrounded public-API results; reconciliation was computed before rounding.
 
 \section{LaTeX compilation}
-The build uses pdfLaTeX, latexmk 4.88 and Biber 2.22 with biblatex author--year references; pdfTeX is 1.40.29 (MiKTeX 26.5).
+The build uses pdfLaTeX, latexmk 4.88 and Biber 2.22 with compressed numeric biblatex references; pdfTeX is 1.40.29 (MiKTeX 26.5).
 \begingroup\footnotesize
 \begin{verbatim}
 Push-Location .\paper

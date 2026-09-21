@@ -1,17 +1,35 @@
-\documentclass[12pt,a4paper,oneside]{report}
+\documentclass[12pt,a4paper]{report}
 % Compile with pdfLaTeX via latexmk; modern LaTeX already defaults to UTF-8.
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage[british]{babel}
-\usepackage[left=30mm,right=25mm,top=25mm,bottom=25mm]{geometry}
-\usepackage{setspace,microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
 \usepackage{amsmath,amssymb,mathtools}
-\usepackage{booktabs,longtable,array}
+\usepackage{booktabs,array}
 \usepackage{siunitx}
 \usepackage{csquotes}
 \usepackage{graphicx,float,caption,subcaption,xcolor}
-\usepackage[backend=biber,style=authoryear,maxcitenames=2,maxbibnames=99,
-  giveninits=true,uniquename=init,doi=true,isbn=false,url=true]{biblatex}
+\usepackage{titlesec}
+\titleformat{\chapter}[hang]
+  {\normalfont\Large\bfseries}
+  {\thechapter\quad}
+  {0pt}
+  {}
+\titleformat{\section}[hang]
+  {\normalfont\large\bfseries}
+  {\thesection\quad}
+  {0pt}
+  {}
+\titleformat{\subsection}[hang]
+  {\normalfont\normalsize\bfseries}
+  {\thesubsection\quad}
+  {0pt}
+  {}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+\usepackage[backend=biber,style=numeric-comp,sorting=none,maxbibnames=99,
+  giveninits=true,doi=true,isbn=false,url=true]{biblatex}
 \addbibresource{references.bib}
 \usepackage[hidelinks]{hyperref}
 \usepackage[nameinlink,noabbrev]{cleveref}
@@ -20,11 +38,9 @@
   Numerical Verification, Yield-Curve Modelling and Interest-Rate Risk},
   pdfsubject={Fixed-rate valuation, numerical verification and deterministic curve risk}
 }
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\onehalfspacing
 \setlength{\emergencystretch}{2em}
 \setlength{\parindent}{1.5em}
-\captionsetup{font=small,labelfont=bf}
+\captionsetup{font=footnotesize,labelfont=bf}
 \graphicspath{{figures/}}
 \numberwithin{equation}{chapter}
 \newcommand{\yytm}{y_{\mathrm{YTM}}}
@@ -35,23 +51,24 @@ the illustrative offline data supplied with the analytics engine.}}
 \hypersetup{pageanchor=false}
 \begin{titlepage}
 \centering
-\vspace*{20mm}
-{\LARGE\bfseries A Fixed-Income Analytics Engine:\par}
-\vspace{6mm}
-{\Large Mathematical Foundations, Numerical Verification,
+\vspace*{2.5cm}
+{\LARGE\bfseries A Fixed-Income Analytics Engine:\\[0.35cm]
+Mathematical Foundations, Numerical Verification,
 Yield-Curve Modelling and Interest-Rate Risk\par}
-\vspace{12mm}
-{\large Fixed-rate bond valuation and the
-Nelson--Siegel--Svensson term structure\par}
+\vspace{3cm}
+{\Large\bfseries Samuel Remedios\par}
 \vfill
 {\large A computational finance dissertation\par}
-\vspace{6mm}
-
-\vspace{12mm}
+\vspace{1.3cm}
 {\small Educational computational study.\par
-No institutional affiliation or submission is asserted.}
+No institutional affiliation or submission is asserted.\par}
+\vspace{0.8cm}
+{\large September 2026\par}
 \end{titlepage}
+\clearpage
+\fontsize{11pt}{13.5pt}\selectfont
 \pagenumbering{roman}
+\setcounter{page}{1}
 \hypersetup{pageanchor=true}
 \chapter*{Study status and declaration note}
 \addcontentsline{toc}{chapter}{Study status and declaration note}
@@ -66,14 +83,8 @@ The independent internal verification record remains available as
 \clearpage
 \tableofcontents
 \clearpage
-\listoffigures
-\clearpage
-\listoftables
-\clearpage
-\input{frontmatter/notation}
-\input{frontmatter/glossary}
-\clearpage
 \pagenumbering{arabic}
+\setcounter{page}{1}
 \input{chapters/01_introduction}
 \input{chapters/02_fixed_income_foundations}
 \input{chapters/03_bond_analytics}

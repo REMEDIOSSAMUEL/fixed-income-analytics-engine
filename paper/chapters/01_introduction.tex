@@ -1,11 +1,11 @@
 \chapter{Introduction}\label{ch:introduction}
-Bonds finance borrowing through promised payments. Their valuation depends on when those payments occur and how future amounts are discounted \parencite{tuckman2011}. A single discount yield cannot generally represent rates that vary by maturity; a yield curve records rates against maturity under a stated convention \parencite{tuckman2011}. Price levels alone do not establish rate sensitivity.
+Bonds finance borrowing through promised payments. Their valuation depends on when those payments occur and how future amounts are discounted \parencite{tuckman2011}. A single discount yield cannot generally represent rates that vary by maturity; a yield curve records rates against maturity under a stated convention \parencite{tuckman2011}. Price levels alone do not establish rate sensitivity. Nelson--Siegel--Svensson (NSS) modelling represents such a curve with a six-parameter function of maturity, while deterministic interest-rate risk measures price changes under specified rate shocks rather than assigning probabilities to them.
 
 This dissertation examines fixed-rate valuation, Nelson--Siegel--Svensson modelling and deterministic interest-rate risk through four questions:
 \begin{enumerate}
 \item\label{rq:bond} How do explicit conventions determine bond prices and yield sensitivities?
-\item\label{rq:nss} How can a smooth parametric curve be fitted reliably?
-\item\label{rq:risk} How can parallel, shaped and key-rate exposures be represented consistently?
+\item\label{rq:nss} How can a smooth parametric curve---a curve specified by a finite set of parameters---be fitted reliably?
+\item\label{rq:risk} How can parallel exposures to the same rate move at every maturity, shaped exposures to maturity-dependent moves and key-rate exposures localised around selected maturities be represented consistently?
 \item\label{rq:verification} What independent evidence supports computational correctness?
 \end{enumerate}
 The scope comprises regular option-free bonds, whose contracts contain no rights to alter payments, and illustrative offline rates. Credit events, forecasting, trading and backtesting are excluded. The contribution is independent verification of established mathematics, not new financial theory.
